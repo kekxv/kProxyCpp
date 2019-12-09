@@ -1,0 +1,3 @@
+[submodule "clangTools"]
+	path = clangTools
+	url = https://github.com/kekxv/clangTools.git
