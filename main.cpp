@@ -1,11 +1,11 @@
 #include <iostream>
-#include <kProxy.h>
+#include <kHttpd.h>
 
-int main() {
+int main(int argc, char **argv) {
     std::cout << "Hello, World!" << std::endl;
-    kProxy::Init();
+    kHttpd::Init();
 
-    kProxy kProxy(100);
+    kHttpd kProxy("./", 20);
     kProxy.listen();
     return 0;
 }

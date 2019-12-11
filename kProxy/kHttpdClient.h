@@ -12,9 +12,9 @@
 #include <HttpResponseCode.h>
 #include <socket.h>
 
-class kProxy;
+class kHttpd;
 
-class kClient {
+class kHttpdClient {
 private:
 public:
 private:
@@ -31,13 +31,14 @@ public:
     std::map<std::string, std::string> response_header;
     std::vector<unsigned char> body_data;
 
-    kClient(kProxy *parent, int fd);
-    ~kClient();
+    kHttpdClient(kHttpd *parent, int fd);
+
+    ~kHttpdClient();
 
     int run();
 
 private:
-    kProxy *parent = nullptr;
+    kHttpd *parent = nullptr;
     int fd = 0;
     kekxv::socket *_socket = nullptr;
 
@@ -45,10 +46,14 @@ private:
     void init_header(const char *data, unsigned long int size, bool is_split_n);
 
     void send_header();
+
     void send_body();
 
 private:
-    static std::string get_localtime();
+    static std::string get_localtime(time_t now = 0);
+
+
+    friend class kHttpd;
 };
 
 

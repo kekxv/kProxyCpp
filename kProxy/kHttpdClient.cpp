@@ -2,24 +2,54 @@
 // Created by caesar on 2019/12/1.
 //
 
-#include "kClient.h"
+#include "kHttpdClient.h"
 #include "UTF8Url.h"
+#include "kHttpd.h"
 #include <string>
 #include <vector>
 #include <cstring>
 #include <unistd.h>
+#include <filesystem>
+#include <sstream>
 
 using namespace std;
+#ifdef __APPLE__
+using namespace std::__fs;
+#endif
+
+static map<string, string> kHttpdClient_HTTP_Content_Type = {
+        {"*",     "application/octet-stream"},
+        {".bmp",  "image/bmp"},
+        {".ico",  "image/ico"},
+        {".png",  "image/png"},
+        {".jpg",  "image/*"},
+        {".jpeg", "image/*"},
+        {".tiff", "image/tiff"},
+        {".ppt",  "application/x-ppt"},
+        {".pdf",  "application/pdf"},
+        {".mp2v", "video/mpeg"},
+        {".wmv",  "video/x-ms-wmv"},
+        {".mpeg", "video/mpg"},
+        {".mp4",  "video/mpeg4"},
+        {".avi",  "video/avi"},
+        {".mp2",  "audio/mp2"},
+        {".mp3",  "audio/mp3"},
+        {".doc",  "application/msword"},
+        {".html", "text/html"},
+        {".htm",  "text/html"},
+        {".css",  "text/css"},
+        {".js",   "application/x-javascript"},
+};
 
 #ifdef __FILENAME__
-const char *kClient::TAG = __FILENAME__;
+const char *kHttpdClient::TAG = __FILENAME__;
 #else
 const char *kClient::TAG = "kClient";
 #endif
 
-logger *kClient::_logger = logger::instance();
+logger *kHttpdClient::_logger = logger::instance();
 
-kClient::kClient(kProxy *parent, int fd) {
+kHttpdClient::kHttpdClient(kHttpd *parent, int fd) {
     if (_logger->min_level != logger::log_rank_DEBUG) {
         _logger->min_level = logger::log_rank_DEBUG;
 #ifdef _LOGGER_USE_THREAD_POOL_
@@ -36,12 +66,12 @@ kClient::kClient(kProxy *parent, int fd) {
     this->_socket = new kekxv::socket(fd);
 }
 
-kClient::~kClient() {
+kHttpdClient::~kHttpdClient() {
     delete this->_socket;
 }
 
 
-int kClient::run() {
+int kHttpdClient::run() {
     vector<unsigned char> data;
     unsigned long int split_index = 0;
     bool is_split_n = true;
@@ -137,30 +167,83 @@ int kClient::run() {
         };
     }
 
+
     /********* 输出body内容 *********/
+    /*
     if (!body_data.empty()) {
         string post_data = (char *) body_data.data();
         _logger->d(TAG, __LINE__, "body:\n%s\n", (post_data).c_str());
         _logger->d(TAG, __LINE__, "body:\n%s\n", UTF8Url::Decode(post_data).c_str());
     }
+    */
 
-    this->response_code = HttpResponseCode::ResponseCode::NotFound;
-    string body = "未找到页面:" + url_path;
-    this->ResponseContent.insert(ResponseContent.begin(), &body.data()[0], &body.data()[body.size()]);
+    try {
+        if (!parent->check_host_path(this, header["Host"], method, url_path)) {
+            if (parent->web_root_path.empty()) {
+                throw std::exception();
+            } else {
+
+                bool is_dirs = filesystem::is_directory(parent->web_root_path + url_path);
+                if (is_dirs) {
+                    url_path += (url_path[url_path.size() - 1] == '/' ? "" : "/") + string("index.html");
+                }
+                bool is_exists = filesystem::exists(parent->web_root_path + url_path);
+                if (!is_exists) {
+                    throw std::exception();
+                }
+                // Last-Modified: Fri, 01 Nov 2019 13:23:55 GMT
+                ifstream inFile(parent->web_root_path + url_path, ios::in | ios::binary);
+                if (!inFile) {
+                    throw std::exception();
+                }
+                filesystem::path filepath(parent->web_root_path + url_path);
+                auto mtime = get_localtime(logger::get_mtime(parent->web_root_path + url_path));
+                response_header["Last-Modified"] = mtime;
+                response_header["Etag"] = mtime;
+                response_header["Accept-Ranges"] = "bytes";
+                if (header.find("if-modified-since") != header.end() && header["if-modified-since"] == mtime) {
+                    this->response_code = HttpResponseCode::ResponseCode::NotModified;
+                } else {
+                    unsigned char _buf[513];
+                    while (inFile.read((char *) &_buf[0], 512 * sizeof(unsigned char)).gcount() > 0) {
+                        ResponseContent.insert(ResponseContent.end(), &_buf[0], &_buf[inFile.gcount()]);
+                    }
+                    inFile.close();
+                    string type = "*";
+                    type = filepath.extension();
+                    if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
+                        type = "*";
+                    this->ContentType = kHttpdClient_HTTP_Content_Type[type];
+                }
+            }
+        }
+    } catch (std::exception &e) {
+        this->response_code = HttpResponseCode::ResponseCode::NotFound;
+        string body = "未找到页面:" + url_path;
+        this->ResponseContent.insert(ResponseContent.begin(), &body.c_str()[0], &body.c_str()[body.size()]);
+    }
 
 
     /********* 回复http 头 *********/
     send_header();
     /********* 回复http body内容 *********/
     send_body();
+
+    if (response_code < 400) {
+        _logger->i(TAG, __LINE__, "%-6s %3d %s ", method.c_str(), response_code, url_path.c_str());
+    } else if (response_code < 500) {
+        _logger->w(TAG, __LINE__, "%-6s %3d %s ", method.c_str(), response_code, url_path.c_str());
+    } else {
+        _logger->e(TAG, __LINE__, "%-6s %3d %s ", method.c_str(), response_code, url_path.c_str());
+    }
     return fd;
 }
 
-string kClient::get_localtime() {
+string kHttpdClient::get_localtime(time_t now) {
     char localtm[512] = {0};
-    time_t now; //实例化time_t结构
     struct tm *timenow; //实例化tm结构指针
-    time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
+    if (now <= 0)
+        time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
 
     timenow = localtime(&now);
 
@@ -173,7 +256,7 @@ string kClient::get_localtime() {
     return localtm;
 }
 
-void kClient::init_header(const char *data, unsigned long int size, bool is_split_n) {
+void kHttpdClient::init_header(const char *data, unsigned long int size, bool is_split_n) {
     unsigned long int offset = 0;
     int space_index = 0;
     for (; offset < size; offset++) {
@@ -204,7 +287,6 @@ void kClient::init_header(const char *data, unsigned long int size, bool is_spli
     if (method.empty())method = "GET";
     if (url_path.empty())url_path = "/";
     if (http_version.empty())http_version = "HTTP/1.0";
-    _logger->d(TAG, __LINE__, "%s %s %s", method.c_str(), url_path.c_str(), http_version.c_str());
 
     space_index = 0;
     string key, value;
@@ -212,15 +294,27 @@ void kClient::init_header(const char *data, unsigned long int size, bool is_spli
         if (data[offset] == '\r' && data[offset + 1] == '\n') {
             offset += 1;
             space_index = 0;
-            if (!key.empty() && !value.empty())
+            if (!key.empty() && !value.empty()) {
+                string l_key = key;
+                transform(l_key.begin(), l_key.end(), l_key.begin(), ::tolower);
                 header[key] = value;
+                if (l_key != key) {
+                    header[l_key] = value;
+                }
+            }
             key = "";
             value = "";
             continue;
         } else if (data[offset] == '\n') {
             space_index = 0;
-            if (!key.empty() && !value.empty())
+            if (!key.empty() && !value.empty()) {
+                string l_key = key;
+                transform(l_key.begin(), l_key.end(), l_key.begin(), ::tolower);
                 header[key] = value;
+                if (l_key != key) {
+                    header[l_key] = value;
+                }
+            }
             key = "";
             value = "";
             continue;
@@ -237,17 +331,21 @@ void kClient::init_header(const char *data, unsigned long int size, bool is_spli
         }
     }
 
+    /***
     _logger->d(TAG, __LINE__, "header size:%ld", header.size());
     for (auto &item : header) {
         _logger->d(TAG, __LINE__, "%s : %s", item.first.c_str(), item.second.c_str());
     }
+    //*/
 
 }
 
-void kClient::send_header() {
+void kHttpdClient::send_header() {
     string line_one = http_version + " " + to_string(response_code) + " " +
                       HttpResponseCode::get_response_code_string(response_code);
+    /**
     _logger->d(TAG, __LINE__, "%s", line_one.c_str());
+    */
     line_one.push_back('\n');
     this->_socket->send(line_one);
     response_header["Content-Type"] = ContentType;
@@ -255,14 +353,16 @@ void kClient::send_header() {
     response_header["Content-Length"] = to_string(ResponseContent.size());
     for (auto &item : response_header) {
         string line = item.first + ": " + item.second;
+        /**
         _logger->d(TAG, __LINE__, "%s", line.c_str());
+        */
         line.push_back('\n');
         this->_socket->send(line);
     }
     this->_socket->send("\n");
 }
 
-void kClient::send_body() {
+void kHttpdClient::send_body() {
     auto len = ResponseContent.size();
     ssize_t offset = 0;
     while (offset < len) {
