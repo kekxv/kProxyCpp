@@ -44,7 +44,7 @@ static map<string, string> kHttpdClient_HTTP_Content_Type = {
 #ifdef __FILENAME__
 const char *kHttpdClient::TAG = __FILENAME__;
 #else
-const char *kClient::TAG = "kClient";
+const char *kHttpdClient::TAG = "kHttpdClient";
 #endif
 
 logger *kHttpdClient::_logger = logger::instance();

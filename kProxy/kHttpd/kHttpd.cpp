@@ -17,6 +17,7 @@
 #endif
 
 #include <kHttpdClient.h>
+#include <kWebSocketClient.h>
 #include <socket.h>
 
 using namespace std;
@@ -44,11 +45,6 @@ void kHttpd::Init() {
     (void)WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-#ifdef _WIN32
-    evthread_use_windows_threads();
-#else
-    evthread_use_pthreads();
-#endif
 }
 
 kHttpd::kHttpd(int max_thread) {
@@ -128,7 +124,12 @@ int kHttpd::listen(int listen_count, short port, const char *ip) {
                     ) {
                 threadPool->commit([this](int new_fd) -> void {
                     // _logger->d(TAG, __LINE__, "======== client thread run ========");
-                    int _fd = kHttpdClient(this, new_fd).run();
+                    int _fd = -1;
+                    if (isWebSocket) {
+                        _fd = kWebSocketClient(this, new_fd).run();
+                    } else {
+                        _fd = kHttpdClient(this, new_fd).run();
+                    }
                     if (_fd > 0) {
                         shutdown(_fd, SHUT_RDWR);
                         close(_fd);
@@ -166,4 +167,15 @@ void kHttpd::add_poll_check(int new_fd) {
 bool
 kHttpd::check_host_path(class kHttpdClient *_kHttpdClient, std::string Host, std::string method, std::string url_path) {
     return false;
+}
+
+bool
+kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, std::string Host, std::string method,
+                        std::string url_path) {
+    return false;
+}
+
+bool
+kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, int type, std::vector<unsigned char> data) {
+    return _kWebSocketClient->send(data, type) >= 0;
 }

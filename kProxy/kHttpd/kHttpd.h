@@ -16,11 +16,6 @@
 #endif
 
 #include <logger.h>
-#include <event.h>
-#include <event2/event.h>
-#include <event2/bufferevent.h>
-#include <event2/thread.h>
-#include <event2/listener.h>
 #include <thread_pool.h>
 
 class _kProxy_HEADER_Export kHttpd {
@@ -29,13 +24,17 @@ private:
     static const char *TAG;
     static logger *_logger;
 
-
 public:
     static void Init();
 
     explicit kHttpd(int max_thread = 20);
 
     explicit kHttpd(const char *web_root_path, int max_thread = 20);
+
+    /**
+     * 是否是 WebSocket
+     */
+    bool isWebSocket = false;
 
     ~kHttpd();
 
@@ -60,7 +59,14 @@ private:
 
     bool check_host_path(class kHttpdClient *_kHttpdClient, std::string Host, std::string method, std::string url_path);
 
+    bool check_host_path(class kWebSocketClient *_kWebSocketClient, std::string Host, std::string method,
+                         std::string url_path);
+
+    bool check_host_path(class kWebSocketClient *_kWebSocketClient, int type, std::vector<unsigned char> data);
+
     friend class kHttpdClient;
+
+    friend class kWebSocketClient;
 };
 
 

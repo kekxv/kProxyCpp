@@ -42,6 +42,7 @@ endif (MSVC)
 include_directories(
         .
         kProxy
+        kProxy/kHttpd
 )
 
 
@@ -70,7 +71,14 @@ endif ()
 
 
 #aux_source_directory(kHttpd srcSource)
-FILE(GLOB_RECURSE srcSource "kProxy/*.c" "kProxy/*.cc" "kProxy/*.cpp" "kProxy/*.h" "kProxy/*.hpp")
+FILE(GLOB_RECURSE srcSource
+        "kProxy/*.c"
+        "kProxy/*.cc"
+        "kProxy/*.cpp"
+        "kProxy/*.h"
+        "kProxy/*.hpp"
+        "kProxy/*/*"
+        )
 
 add_library(kProxy STATIC ${srcSource})
 
