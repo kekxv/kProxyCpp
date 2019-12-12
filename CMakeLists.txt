@@ -112,3 +112,20 @@ install(TARGETS kProxyCpp kProxy
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
+
+FILE(GLOB_RECURSE include_header kProxy/*.h kProxy/*/*.h)
+install(FILES
+        ${include_header}
+        DESTINATION include)
+
+install(FILES
+        main.cpp
+        DESTINATION Example)
+
+
+# 复制 lib 代码到 lib 下
+install(DIRECTORY Example/ DESTINATION Example
+        PATTERN "Example/*"
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+        GROUP_EXECUTE GROUP_READ)
+

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>测试 WebSocket</title>
+    <script type="text/javascript">
+        let ws = null;
+
+        function console_log(str) {
+            let log_box = document.querySelector("#log_box");
+            log_box.innerHTML = `${str} <br/> <hr/> ${log_box.innerHTML}`;
+        }
+
+        function WebSocketConnect() {
+            if ("WebSocket" in window) {
+                if (ws != null) {
+                    ws.close();
+                    ws = null;
+                }
+                console_log("您的浏览器支持 WebSocket!");
+                // 打开一个 web socket
+                ws = new WebSocket("ws://127.0.0.1:8080/ws");
+                ws.onopen = function () {
+                    console_log("连接已打开...");
+                    ws.send(JSON.stringify({
+                        type: "Login",
+                        submit: "Login",
+                        m: "c07f0fe220f510f9c723891945ae4a01",
+                        r: "69",
+                        Token: "Caesar",
+                        // user:"Caesar",
+                        // passwd:"123456",
+                    }));
+                };
+                ws.onmessage = function (evt) {
+                    let received_msg = evt.data;
+                    received_msg = JSON.stringify(JSON.parse(received_msg));
+                    console_log(`数据已接收:${received_msg}`);
+                };
+                ws.onclose = function () {
+                    // 关闭 websocket
+                    console_log("连接已关闭...");
+                };
+            } else {
+                // 浏览器不支持 WebSocket
+                console_log("您的浏览器不支持 WebSocket!");
+            }
+        }
+
+        function send() {
+            ws && ws.send(document.querySelector("#send_box").value);
+        }
+
+        function Login() {
+            ws && ws.send(JSON.stringify({
+                type: "Login",
+                submit: "Login",
+                user: "Caesar",
+                passwd: "123456",
+            }));
+        }
+
+        function GetUserInfo() {
+            ws && ws.send(JSON.stringify({
+                type: "UserInfo",
+            }));
+        }
+
+        function Logout() {
+            ws && ws.send(JSON.stringify({
+                type: "Logout",
+            }));
+        }
+    </script>
+</head>
+<body>
+<div>
+    <button onclick="WebSocketConnect()">连接 WebSocket</button>
+</div>
+<hr/>
+<div>
+    <button onclick="Login()">登录</button>
+    <button onclick="GetUserInfo()">获取用户信息</button>
+    <button onclick="Logout()">退出登录</button>
+    <br/>
+    <br/>
+    send:
+    <br/>
+    <label for="send_box"><textarea id="send_box"
+                                    style="width: 100%;min-height: 5em;">{"type":"UserInfo"}</textarea></label>
+    <br/>
+    <button onclick="send()">发送</button>
+    <br/>
+</div>
+<hr/>
+<hr/>
+<div>
+    log:
+    <div id="log_box"
+         style="border: 1px solid #CCCCCC;padding: 0.5em;overflow: auto;width: 100%;box-sizing: border-box;word-wrap:break-word;word-break:break-all;"></div>
+</div>
+</body>
+</html>
