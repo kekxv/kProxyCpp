@@ -178,7 +178,7 @@ int kHttpdClient::run() {
     */
 
     try {
-        if (!parent->check_host_path(this, header["Host"], method, url_path)) {
+        if (0 > parent->check_host_path(this, header["Host"], method, url_path)) {
             if (parent->web_root_path.empty()) {
                 throw std::exception();
             } else {

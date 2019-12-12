@@ -3,6 +3,7 @@
 //
 
 #include "kHttpd.h"
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -164,18 +165,73 @@ void kHttpd::add_poll_check(int new_fd) {
     // cv_task.notify_one();
 }
 
-bool
-kHttpd::check_host_path(class kHttpdClient *_kHttpdClient, std::string Host, std::string method, std::string url_path) {
-    return false;
+int
+kHttpd::check_host_path(class kHttpdClient *_kHttpdClient, const std::string &Host, const std::string &method,
+                        const std::string &url_path) {
+    if (url_cb_tasks.find(Host + "_" + method + "_" + url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[Host + "_" + method + "_" + url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
+                                                                  method, 0, nullptr);
+    } else if (url_cb_tasks.find(Host + "_" + "_" + url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[Host + "_" + "_" + url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
+                                                         method, 0, nullptr);
+    } else if (url_cb_tasks.find(method + "_" +
+                                 url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[method + "_" +
+                            url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
+                                      method, 0, nullptr);
+    } else if (url_cb_tasks.find(url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
+                                      method, 0, nullptr);
+    } else if (gen_cb_task != nullptr) {
+        return gen_cb_task(_kHttpdClient, _kHttpdClient->body_data, url_path,
+                           method,
+                           Host, 0, nullptr);
+    }
+    return -1;
 }
 
-bool
-kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, std::string Host, std::string method,
-                        std::string url_path) {
-    return false;
-}
-
-bool
-kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, int type, std::vector<unsigned char> data) {
+int
+kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, int type, const std::vector<unsigned char> &data) {
+    if (url_cb_tasks.find(_kWebSocketClient->header["host"] + "_" + _kWebSocketClient->method + "_" +
+                          _kWebSocketClient->url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[_kWebSocketClient->header["host"] + "_" + _kWebSocketClient->method + "_" +
+                            _kWebSocketClient->url_path](_kWebSocketClient, data, _kWebSocketClient->url_path,
+                                                         _kWebSocketClient->method, type, nullptr);
+    } else if (url_cb_tasks.find(_kWebSocketClient->header["host"] + "_" + "_" +
+                                 _kWebSocketClient->url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[_kWebSocketClient->header["host"] + "_" + "_" +
+                            _kWebSocketClient->url_path](_kWebSocketClient, data, _kWebSocketClient->url_path,
+                                                         _kWebSocketClient->method, type, nullptr);
+    } else if (url_cb_tasks.find(_kWebSocketClient->method + "_" +
+                                 _kWebSocketClient->url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[_kWebSocketClient->method + "_" +
+                            _kWebSocketClient->url_path](_kWebSocketClient, data, _kWebSocketClient->url_path,
+                                                         _kWebSocketClient->method, type, nullptr);
+    } else if (url_cb_tasks.find(_kWebSocketClient->url_path) != url_cb_tasks.end()) {
+        return url_cb_tasks[_kWebSocketClient->url_path](_kWebSocketClient, data, _kWebSocketClient->url_path,
+                                                         _kWebSocketClient->method, type, nullptr);
+    } else if (gen_cb_task != nullptr) {
+        return gen_cb_task(_kWebSocketClient, data, _kWebSocketClient->url_path,
+                           _kWebSocketClient->method,
+                           _kWebSocketClient->header["host"], type, nullptr);
+    }
     return _kWebSocketClient->send(data, type) >= 0;
+}
+
+void
+kHttpd::set_cb(kHttpd::url_cb task, const std::string &url_path, const std::string &method, const std::string &host) {
+    string key;
+    if (!host.empty()) {
+        key += host + "_";
+        key += method + "_";
+    }
+    if (!method.empty()) {
+        key += method + "_";
+    }
+    key += url_path;
+    url_cb_tasks[key] = std::move(task);
+}
+
+void kHttpd::set_gencb(kHttpd::gen_cb task) {
+    gen_cb_task = std::move(task);
 }

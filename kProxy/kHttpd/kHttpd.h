@@ -40,11 +40,28 @@ public:
 
     int listen(int listen_count = 20, short port = 8080, const char *ip = "0.0.0.0");
 
+
+    using url_cb = std::function<int(void *kClient, std::vector<unsigned char> data, std::string url_path,
+                                     std::string method,int type,void *arg)>;
+    using gen_cb = std::function<int(void *kClient, std::vector<unsigned char> data, std::string url_path,
+                                     std::string method,
+                                     std::string host,int type,void *arg)>;
+
+    void set_cb(url_cb task,
+                const std::string &url_path,
+                const std::string &method = "",
+                const std::string &host = "");
+
+    void set_gencb(gen_cb task);
+
 private:
     int fd = -1;
     thread_pool *threadPool = nullptr;
     bool isRunning = true;
     std::string web_root_path;
+
+    gen_cb gen_cb_task = nullptr;
+    std::map<std::string, url_cb> url_cb_tasks;
 
 private:
     // 同步
@@ -57,12 +74,9 @@ private:
 
     void add_poll_check(int new_fd);
 
-    bool check_host_path(class kHttpdClient *_kHttpdClient, std::string Host, std::string method, std::string url_path);
+    int check_host_path(class kHttpdClient *_kHttpdClient, const std::string& Host, const std::string& method, const std::string& url_path);
 
-    bool check_host_path(class kWebSocketClient *_kWebSocketClient, std::string Host, std::string method,
-                         std::string url_path);
-
-    bool check_host_path(class kWebSocketClient *_kWebSocketClient, int type, std::vector<unsigned char> data);
+    int check_host_path(class kWebSocketClient *_kWebSocketClient, int type, const std::vector<unsigned char>& data);
 
     friend class kHttpdClient;
 

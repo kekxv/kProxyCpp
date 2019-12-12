@@ -36,18 +36,21 @@ public:
     ~kWebSocketClient();
 
     int run();
+
     /**
      * 发送数据
      * @param data 数据内容
      * @param type 数据类型：0 连续的frame  1 文本frame  2 二进制frame  3-7 预留  8 连接关闭  9 ping  A pong  B-F 预留
      * @return
      */
-    int send(std::vector<unsigned char> &data, unsigned char type);
+    int send(const std::vector<unsigned char> &data, unsigned char type);
+    int send(const std::string &data);
 
 private:
     kHttpd *parent = nullptr;
     int fd = 0;
     kekxv::socket *_socket = nullptr;
+    std::mutex m_send_lock;
 
 
     void init_header(const char *data, unsigned long int size, bool is_split_n);
@@ -61,9 +64,8 @@ private:
 
     int parse(std::vector<unsigned char> &data, unsigned char &FIN, unsigned long long &next);
 
-    static int build(std::vector<unsigned char> &send_data, std::vector<unsigned char> &data, unsigned char type,
-              bool $need_masks = false);
-
+    static int build(std::vector<unsigned char> &send_data,const std::vector<unsigned char> &data, unsigned char type,
+                     bool $need_masks = false);
 
 
     friend class kHttpd;

@@ -420,7 +420,8 @@ int kWebSocketClient::parse(std::vector<unsigned char> &data, unsigned char &FIN
 }
 
 
-int kWebSocketClient::build(std::vector<unsigned char> &send_data, std::vector<unsigned char> &data, unsigned char type,
+int kWebSocketClient::build(std::vector<unsigned char> &send_data, const std::vector<unsigned char> &data,
+                            unsigned char type,
                             bool $need_masks) {
     unsigned char _type = 0b10000000;
     _type += type;
@@ -460,7 +461,7 @@ int kWebSocketClient::build(std::vector<unsigned char> &send_data, std::vector<u
 }
 
 
-int kWebSocketClient::send(std::vector<unsigned char> &data, unsigned char type) {
+int kWebSocketClient::send(const std::vector<unsigned char> &data, unsigned char type) {
     std::vector<unsigned char> send_data;
     if (build(send_data, data, type, false) > 0) {
         /*
@@ -469,7 +470,14 @@ int kWebSocketClient::send(std::vector<unsigned char> &data, unsigned char type)
         unsigned char _FIN = 1;
         int _ret = parse(_buffer, _FIN, _next);
         */
+        std::unique_lock<std::mutex> lock{this->m_send_lock};
         return this->_socket->send(send_data);
     }
     return -1;
+}
+
+int kWebSocketClient::send(const std::string &data) {
+    std::vector<unsigned char> send_data;
+    send_data.insert(send_data.end(), data.data(), data.data() + data.size());
+    return send(send_data, 1);
 }
