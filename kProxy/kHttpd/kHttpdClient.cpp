@@ -5,6 +5,7 @@
 #include "kHttpdClient.h"
 #include "UTF8Url.h"
 #include "kHttpd.h"
+#include <CGI/kCGI.h>
 #include <string>
 #include <vector>
 #include <cstring>
@@ -20,7 +21,7 @@ using namespace std::__fs;
 static map<string, string> kHttpdClient_HTTP_Content_Type = {
         {"*",     "application/octet-stream"},
         {".bmp",  "image/bmp"},
-        {".ico",  "image/ico"},
+        {".ico",  "image/x-icon"},
         {".png",  "image/png"},
         {".jpg",  "image/*"},
         {".jpeg", "image/*"},
@@ -50,6 +51,21 @@ const char *kHttpdClient::TAG = "kHttpdClient";
 logger *kHttpdClient::_logger = logger::instance();
 
 kHttpdClient::kHttpdClient(kHttpd *parent, int fd) {
+    init(parent, fd);
+}
+
+kHttpdClient::kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, std::string> &header,
+                           std::string method,
+                           std::string url_path,
+                           std::string http_version) {
+    init(parent, fd);
+    this->url_path = url_path;
+    this->method = method;
+    this->http_version = http_version;
+    this->header = header;
+}
+
+void kHttpdClient::init(kHttpd *_parent, int _fd) {
     if (_logger->min_level != logger::log_rank_DEBUG) {
         _logger->min_level = logger::log_rank_DEBUG;
 #ifdef _LOGGER_USE_THREAD_POOL_
@@ -60,10 +76,10 @@ kHttpdClient::kHttpdClient(kHttpd *parent, int fd) {
 
     struct sockaddr_in remote_addr{};
     socklen_t sin_size = 0;
-    getpeername(fd, (struct sockaddr *) &remote_addr, &sin_size);
-    this->parent = parent;
-    this->fd = fd;
-    this->_socket = new kekxv::socket(fd);
+    getpeername(_fd, (struct sockaddr *) &remote_addr, &sin_size);
+    this->parent = _parent;
+    this->fd = _fd;
+    this->_socket = new kekxv::socket(_fd);
 }
 
 kHttpdClient::~kHttpdClient() {
@@ -75,64 +91,67 @@ int kHttpdClient::run() {
     vector<unsigned char> data;
     unsigned long int split_index = 0;
     bool is_split_n = true;
-    /********* 读取数据内容 *********/
-    do {
-        vector<unsigned char> buffer;
-        if (_socket->check_read_count(3 * 1000) <= 0) {
-            break;
-        }
-        auto size = this->_socket->read(buffer);
-        if (size == 0) {
+
+    if (header.empty()) {
+        /********* 读取数据内容 *********/
+        do {
+            vector<unsigned char> buffer;
             if (_socket->check_read_count(3 * 1000) <= 0) {
                 break;
-            } else {
-                size = this->_socket->read(buffer);
             }
-        }
-        if (0 == size) {//说明socket关闭
-            _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
-            shutdown(fd, SHUT_RDWR);
-            close(fd);
-            return 0;
-        } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
-            _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
-            shutdown(fd, SHUT_RDWR);
-            close(fd);
-            return 0;
-        }
-        if (!data.empty()) {
-            if (data.size() >= 2 && data[data.size() - 2] == '\r' && data[data.size() - 1] == '\n') {
-                if (buffer[0 + 0] == '\r' && buffer[0 + 1] == '\n') {
-                    split_index = data.size() + 2;
-                    is_split_n = false;
-                }
-            } else if (data[data.size() - 1] == '\n') {
-                if (buffer[0] == '\n') {
-                    split_index = data.size() + 1;
-                    is_split_n = true;
+            auto size = this->_socket->read(buffer);
+            if (size == 0) {
+                if (_socket->check_read_count(3 * 1000) <= 0) {
+                    break;
+                } else {
+                    size = this->_socket->read(buffer);
                 }
             }
-        }
-        if (split_index == 0) {
-            for (ssize_t i = 0; i < size; i++) {
-                if (buffer[i] == '\r' && buffer[i + 1] == '\n') {
-                    if (buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
-                        split_index = data.size() + i + 4;
+            if (0 == size) {//说明socket关闭
+                _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
+                shutdown(fd, SHUT_RDWR);
+                close(fd);
+                return 0;
+            } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
+                _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
+                shutdown(fd, SHUT_RDWR);
+                close(fd);
+                return 0;
+            }
+            if (!data.empty()) {
+                if (data.size() >= 2 && data[data.size() - 2] == '\r' && data[data.size() - 1] == '\n') {
+                    if (buffer[0 + 0] == '\r' && buffer[0 + 1] == '\n') {
+                        split_index = data.size() + 2;
                         is_split_n = false;
                     }
-                } else if (buffer[i] == '\n') {
-                    if (buffer[i + 1] == '\n') {
-                        split_index = data.size() + i + 2;
+                } else if (data[data.size() - 1] == '\n') {
+                    if (buffer[0] == '\n') {
+                        split_index = data.size() + 1;
                         is_split_n = true;
                     }
                 }
             }
-        }
-        data.insert(data.end(), &buffer[0], &buffer[size]);
+            if (split_index == 0) {
+                for (ssize_t i = 0; i < size; i++) {
+                    if (buffer[i] == '\r' && buffer[i + 1] == '\n') {
+                        if (buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
+                            split_index = data.size() + i + 4;
+                            is_split_n = false;
+                        }
+                    } else if (buffer[i] == '\n') {
+                        if (buffer[i + 1] == '\n') {
+                            split_index = data.size() + i + 2;
+                            is_split_n = true;
+                        }
+                    }
+                }
+            }
+            data.insert(data.end(), &buffer[0], &buffer[size]);
 
-    } while (split_index == 0);
-    /********* 初始化http头 *********/
-    init_header((const char *) data.data(), split_index, is_split_n);
+        } while (split_index == 0);
+        /********* 初始化http头 *********/
+        init_header((const char *) data.data(), split_index, is_split_n);
+    }
     ssize_t ContentLength = 0;
     if (header.find("Content-Length") != header.end()) {
         ContentLength = stoll(header["Content-Length"]);
@@ -191,29 +210,49 @@ int kHttpdClient::run() {
                 if (!is_exists) {
                     throw std::exception();
                 }
-                // Last-Modified: Fri, 01 Nov 2019 13:23:55 GMT
-                ifstream inFile(parent->web_root_path + url_path, ios::in | ios::binary);
-                if (!inFile) {
-                    throw std::exception();
-                }
-                filesystem::path filepath(parent->web_root_path + url_path);
-                auto mtime = get_localtime(logger::get_mtime(parent->web_root_path + url_path));
-                response_header["Last-Modified"] = mtime;
-                response_header["Etag"] = mtime;
-                response_header["Accept-Ranges"] = "bytes";
-                if (header.find("if-modified-since") != header.end() && header["if-modified-since"] == mtime) {
-                    this->response_code = HttpResponseCode::ResponseCode::NotModified;
-                } else {
-                    unsigned char _buf[513];
-                    while (inFile.read((char *) &_buf[0], 512 * sizeof(unsigned char)).gcount() > 0) {
-                        ResponseContent.insert(ResponseContent.end(), &_buf[0], &_buf[inFile.gcount()]);
+
+                if (url_path.find(".php") != string::npos) {
+                    if (!parent->PhpSockPath.empty()) {
+                        kHttpdName::kCGI php(parent->PhpSockPath);
+                        kHttpd::RunPhpCGI(parent->web_root_path + url_path, php, this, this->response_header,
+                                          this->ResponseContent);
+                        this->ContentType = this->response_header["Content-type"];
+                        this->response_header.erase("Content-type");
+                    } else if (!parent->PhpIp.empty() && parent->PhpPort > 0) {
+                        kHttpdName::kCGI php(parent->PhpIp, parent->PhpPort);
+                        kHttpd::RunPhpCGI(parent->web_root_path + url_path, php, this, this->response_header,
+                                          this->ResponseContent);
+                        this->ContentType = this->response_header["Content-type"];
+                        this->response_header.erase("Content-type");
+                    } else {
+                        throw std::exception();
                     }
-                    inFile.close();
-                    string type = "*";
-                    type = filepath.extension();
-                    if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
-                        type = "*";
-                    this->ContentType = kHttpdClient_HTTP_Content_Type[type];
+                } else {
+
+                    // Last-Modified: Fri, 01 Nov 2019 13:23:55 GMT
+                    ifstream inFile(parent->web_root_path + url_path, ios::in | ios::binary);
+                    if (!inFile) {
+                        throw std::exception();
+                    }
+                    filesystem::path filepath(parent->web_root_path + url_path);
+                    auto mtime = get_localtime(logger::get_mtime(parent->web_root_path + url_path));
+                    response_header["Last-Modified"] = mtime;
+                    response_header["Etag"] = mtime;
+                    response_header["Accept-Ranges"] = "bytes";
+                    if (header.find("if-modified-since") != header.end() && header["if-modified-since"] == mtime) {
+                        this->response_code = HttpResponseCode::ResponseCode::NotModified;
+                    } else {
+                        unsigned char _buf[513];
+                        while (inFile.read((char *) &_buf[0], 512 * sizeof(unsigned char)).gcount() > 0) {
+                            ResponseContent.insert(ResponseContent.end(), &_buf[0], &_buf[inFile.gcount()]);
+                        }
+                        inFile.close();
+                        string type = "*";
+                        type = filepath.extension();
+                        if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
+                            type = "*";
+                        this->ContentType = kHttpdClient_HTTP_Content_Type[type];
+                    }
                 }
             }
         }

@@ -33,6 +33,10 @@ public:
 
     kHttpdClient(kHttpd *parent, int fd);
 
+    kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, std::string> &header, std::string method,
+                 std::string url_path,
+                 std::string http_version);
+
     ~kHttpdClient();
 
     int run();
@@ -42,6 +46,7 @@ private:
     int fd = 0;
     kekxv::socket *_socket = nullptr;
 
+    void init(kHttpd *_parent, int _fd);
 
     void init_header(const char *data, unsigned long int size, bool is_split_n);
 

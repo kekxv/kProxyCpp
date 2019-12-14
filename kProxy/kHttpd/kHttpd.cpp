@@ -20,6 +20,7 @@
 #include <kHttpdClient.h>
 #include <kWebSocketClient.h>
 #include <socket.h>
+#include <CGI/kCGI.h>
 
 using namespace std;
 using namespace kekxv;
@@ -48,14 +49,16 @@ void kHttpd::Init() {
 
 }
 
-kHttpd::kHttpd(int max_thread) {
+kHttpd::kHttpd(unsigned int max_thread) {
     this->threadPool = new thread_pool(max_thread);
 }
 
-kHttpd::kHttpd(const char *web_root_path, int max_thread) {
+kHttpd::kHttpd(const char *web_root_path, unsigned int max_thread) {
     this->threadPool = new thread_pool(max_thread);
     if (web_root_path != nullptr) {
-        this->web_root_path = realpath(web_root_path, nullptr);
+        const char *path = realpath(web_root_path, nullptr);
+        if (path != nullptr)
+            this->web_root_path = path;
     }
 }
 
@@ -65,13 +68,14 @@ kHttpd::~kHttpd() {
     this->threadPool = nullptr;
 }
 
-int kHttpd::listen(int listen_count, short port, const char *ip) {
+int kHttpd::listen(int listen_count, unsigned short port, const char *ip) {
     this->fd = kekxv::socket::listen(port, ip, listen_count);
     if (fd <= 0) {
         _logger->e(TAG, __LINE__, "cannot listen");
         return fd;
     }
 
+    _logger->d(__FILENAME__, __LINE__, " root : %s", web_root_path.c_str());
     _logger->i(__FILENAME__, __LINE__, " http://%s:%d", ip, port);
 //    std::thread _poll_check_run(poll_check_run, this);
 
@@ -170,22 +174,22 @@ kHttpd::check_host_path(class kHttpdClient *_kHttpdClient, const std::string &Ho
                         const std::string &url_path) {
     if (url_cb_tasks.find(Host + "_" + method + "_" + url_path) != url_cb_tasks.end()) {
         return url_cb_tasks[Host + "_" + method + "_" + url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
-                                                                  method, 0, nullptr);
+                                                                  method, -1, nullptr);
     } else if (url_cb_tasks.find(Host + "_" + "_" + url_path) != url_cb_tasks.end()) {
         return url_cb_tasks[Host + "_" + "_" + url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
-                                                         method, 0, nullptr);
+                                                         method, -1, nullptr);
     } else if (url_cb_tasks.find(method + "_" +
                                  url_path) != url_cb_tasks.end()) {
         return url_cb_tasks[method + "_" +
                             url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
-                                      method, 0, nullptr);
+                                      method, -1, nullptr);
     } else if (url_cb_tasks.find(url_path) != url_cb_tasks.end()) {
         return url_cb_tasks[url_path](_kHttpdClient, _kHttpdClient->body_data, url_path,
-                                      method, 0, nullptr);
+                                      method, -1, nullptr);
     } else if (gen_cb_task != nullptr) {
         return gen_cb_task(_kHttpdClient, _kHttpdClient->body_data, url_path,
                            method,
-                           Host, 0, nullptr);
+                           Host, -1, nullptr);
     }
     return -1;
 }
@@ -234,4 +238,31 @@ kHttpd::set_cb(kHttpd::url_cb task, const std::string &url_path, const std::stri
 
 void kHttpd::set_gencb(kHttpd::gen_cb task) {
     gen_cb_task = std::move(task);
+}
+
+void kHttpd::init_php(const char *SockPath) {
+    if (SockPath != nullptr)PhpSockPath = SockPath;
+}
+
+void kHttpd::init_php(const char *ip, unsigned short port) {
+    if (ip != nullptr) {
+        PhpIp = ip;
+        PhpPort = port;
+    }
+}
+void kHttpd::RunPhpCGI(const string &filePath, kHttpdName::kCGI &kCgi,
+                       kHttpdClient *httpdClient,
+                       map<string, string> &header,
+                       vector<unsigned char> &data) {
+    kCgi.sendStartRequestRecord();
+    kCgi.sendParams("SCRIPT_FILENAME", filePath.c_str());
+    kCgi.sendParams("REQUEST_METHOD", httpdClient->method.c_str());
+    kCgi.sendParams("REMOTE_HOST", httpdClient->header["host"].c_str());
+    kCgi.sendParams("SERVER_NAME", httpdClient->header["host"].c_str());
+    kCgi.sendParams("SERVER_SOFTWARE", "kHttpd v 0.1");
+    kCgi.sendParams("HTTP_COOKIE", httpdClient->header["cookie"].c_str());
+    kCgi.sendEndRequestRecord();
+//        kCgiData kData;
+    kCgi.ReadFromPhp(header, data);
+//        kData.ToVector(data);
 }

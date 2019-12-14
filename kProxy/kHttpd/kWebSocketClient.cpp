@@ -3,6 +3,7 @@
 //
 
 #include "kWebSocketClient.h"
+#include <kHttpdClient.h>
 #include "UTF8Url.h"
 #include "kHttpd.h"
 #include <string>
@@ -117,6 +118,21 @@ int kWebSocketClient::run() {
     } while (split_index == 0);
     /********* 初始化http头 *********/
     init_header((const char *) data.data(), split_index, is_split_n);
+
+    string upgrade, connection;
+    if (header.find("upgrade") != header.end()) {
+        upgrade = logger::trim(header["upgrade"]);
+        transform(upgrade.begin(), upgrade.end(), upgrade.begin(), ::tolower);
+    }
+    if (header.find("connection") != header.end()) {
+        connection = logger::trim(header["connection"]);
+        transform(connection.begin(), connection.end(), connection.begin(), ::tolower);
+    }
+    _logger->i(TAG, __LINE__, "%s", SecWebSocketAccept.c_str());
+    if ((connection != string("upgrade")) || (upgrade != string("websocket"))) {
+        return kHttpdClient(parent, fd, header, method, url_path, http_version).run();
+    }
+
     SecWebSocketKey = logger::trim(header["sec-websocket-key"]);
 
     string key = SecWebSocketKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";

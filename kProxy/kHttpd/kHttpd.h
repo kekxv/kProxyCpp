@@ -17,6 +17,12 @@
 
 #include <logger.h>
 #include <thread_pool.h>
+#include <CGI/kCGI.h>
+
+
+class kHttpdClient;
+
+class kWebSocketClient;
 
 class _kProxy_HEADER_Export kHttpd {
 public:
@@ -27,9 +33,18 @@ private:
 public:
     static void Init();
 
-    explicit kHttpd(int max_thread = 20);
+    explicit kHttpd(unsigned int max_thread = 20);
 
-    explicit kHttpd(const char *web_root_path, int max_thread = 20);
+    explicit kHttpd(const char *web_root_path, unsigned int max_thread = 20);
+
+    void init_php(const char *SockPath);
+
+    void init_php(const char *ip, unsigned short port);
+
+    static void RunPhpCGI(const std::string &filePath, kHttpdName::kCGI &kCgi,
+                   kHttpdClient *httpdClient,
+                   std::map<std::string, std::string> &header,
+                   std::vector<unsigned char> &data);
 
     /**
      * 是否是 WebSocket
@@ -38,14 +53,14 @@ public:
 
     ~kHttpd();
 
-    int listen(int listen_count = 20, short port = 8080, const char *ip = "0.0.0.0");
+    int listen(int listen_count = 20, unsigned short port = 8080, const char *ip = "0.0.0.0");
 
 
     using url_cb = std::function<int(void *kClient, std::vector<unsigned char> data, std::string url_path,
-                                     std::string method,int type,void *arg)>;
+                                     std::string method, int type, void *arg)>;
     using gen_cb = std::function<int(void *kClient, std::vector<unsigned char> data, std::string url_path,
                                      std::string method,
-                                     std::string host,int type,void *arg)>;
+                                     std::string host, int type, void *arg)>;
 
     void set_cb(url_cb task,
                 const std::string &url_path,
@@ -63,6 +78,11 @@ private:
     gen_cb gen_cb_task = nullptr;
     std::map<std::string, url_cb> url_cb_tasks;
 
+    // php
+    std::string PhpSockPath;
+    std::string PhpIp;
+    unsigned short PhpPort = 9000;
+
 private:
     // 同步
     std::mutex m_lock;
@@ -74,13 +94,14 @@ private:
 
     void add_poll_check(int new_fd);
 
-    int check_host_path(class kHttpdClient *_kHttpdClient, const std::string& Host, const std::string& method, const std::string& url_path);
+    int check_host_path(class kHttpdClient *_kHttpdClient, const std::string &Host, const std::string &method,
+                        const std::string &url_path);
 
-    int check_host_path(class kWebSocketClient *_kWebSocketClient, int type, const std::vector<unsigned char>& data);
+    int check_host_path(class kWebSocketClient *_kWebSocketClient, int type, const std::vector<unsigned char> &data);
 
-    friend class kHttpdClient;
+    friend kHttpdClient;
 
-    friend class kWebSocketClient;
+    friend kWebSocketClient;
 };
 
 

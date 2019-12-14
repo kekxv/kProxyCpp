@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>测试 WebSocket</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <script type="text/javascript">
         let ws = null;
 
@@ -25,16 +27,15 @@
                     ws.send(JSON.stringify({
                         type: "Login",
                         submit: "Login",
-                        m: "c07f0fe220f510f9c723891945ae4a01",
-                        r: "69",
-                        Token: "Caesar",
-                        // user:"Caesar",
-                        // passwd:"123456",
                     }));
                 };
                 ws.onmessage = function (evt) {
                     let received_msg = evt.data;
-                    received_msg = JSON.stringify(JSON.parse(received_msg));
+                    try {
+                        received_msg = JSON.stringify(JSON.parse(received_msg));
+                    } catch (e) {
+
+                    }
                     console_log(`数据已接收:${received_msg}`);
                 };
                 ws.onclose = function () {
@@ -55,8 +56,6 @@
             ws && ws.send(JSON.stringify({
                 type: "Login",
                 submit: "Login",
-                user: "Caesar",
-                passwd: "123456",
             }));
         }
 
@@ -72,6 +71,12 @@
             }));
         }
     </script>
+    <style>
+        textarea,
+        button {
+            border: 1px solid #CCCCCC;
+        }
+    </style>
 </head>
 <body>
 <div>
