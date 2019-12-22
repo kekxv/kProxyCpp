@@ -130,7 +130,7 @@ int kWebSocketClient::run() {
     }
     _logger->i(TAG, __LINE__, "%s", SecWebSocketAccept.c_str());
     if ((connection != string("upgrade")) || (upgrade != string("websocket"))) {
-        return kHttpdClient(parent, fd, header, method, url_path, http_version).run();
+        return kHttpdClient(parent, fd, header, data, split_index, is_split_n,method, url_path, http_version).run();
     }
 
     SecWebSocketKey = logger::trim(header["sec-websocket-key"]);

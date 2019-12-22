@@ -42,9 +42,9 @@ public:
     void init_php(const char *ip, unsigned short port);
 
     static void RunPhpCGI(const std::string &filePath, kHttpdName::kCGI &kCgi,
-                   kHttpdClient *httpdClient,
-                   std::map<std::string, std::string> &header,
-                   std::vector<unsigned char> &data);
+                          kHttpdClient *httpdClient,
+                          std::map<std::string, std::string> &header,
+                          std::vector<unsigned char> &data);
 
     /**
      * 是否是 WebSocket
@@ -66,6 +66,12 @@ public:
                 const std::string &url_path,
                 const std::string &method = "",
                 const std::string &host = "");
+
+    void set_cb(
+            const std::string &method,
+            const std::string &url_path,
+            url_cb task,
+            const std::string &host = "");
 
     void set_gencb(gen_cb task);
 

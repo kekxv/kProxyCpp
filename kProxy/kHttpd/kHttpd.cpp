@@ -222,6 +222,14 @@ kHttpd::check_host_path(class kWebSocketClient *_kWebSocketClient, int type, con
     return _kWebSocketClient->send(data, type) >= 0;
 }
 
+void kHttpd::set_cb(
+        const std::string &method,
+        const std::string &url_path,
+        url_cb task,
+        const std::string &host) {
+    set_cb(task, url_path, method, host);
+}
+
 void
 kHttpd::set_cb(kHttpd::url_cb task, const std::string &url_path, const std::string &method, const std::string &host) {
     string key;
@@ -250,6 +258,7 @@ void kHttpd::init_php(const char *ip, unsigned short port) {
         PhpPort = port;
     }
 }
+
 void kHttpd::RunPhpCGI(const string &filePath, kHttpdName::kCGI &kCgi,
                        kHttpdClient *httpdClient,
                        map<string, string> &header,

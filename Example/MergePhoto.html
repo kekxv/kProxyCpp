@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenCV合并图片</title>
+    <script>
+        let data = {};
+
+        function onChange(type) {
+            let file = this.files[0];
+            let reader = new FileReader();
+            reader.onload = function (event) {
+                // 图片的base64编码会在这里被打印出来
+                data[type] = (event.target.result);
+                let img = document.querySelector(`#${type}_img`);
+                img.src = data[type];
+            };
+            reader.readAsDataURL(file)
+        }
+
+        function MergePhoto() {
+            let httpRequest = new XMLHttpRequest();//第一步：创建需要的对象
+            httpRequest.open('POST', '/MergePhoto', true); //第二步：打开连接/***发送json格式文件必须设置请求头 ；如下 - */
+            httpRequest.setRequestHeader("Content-type", "application/json");
+            httpRequest.send(JSON.stringify(data));//发送请求 将json写入send中
+            /**
+             * 获取数据后的处理程序
+             */
+            httpRequest.onreadystatechange = function () {//请求后的回调接口，可将请求成功后要执行的程序写在其中
+                if (httpRequest.readyState === 4 && httpRequest.status === 200) {//验证请求是否发送成功
+                    let json = httpRequest.responseText;//获取到服务端返回的数据
+                    try {
+                        json = JSON.parse(json);
+                    }catch (e) {
+
+                    }
+                    if(json.code===0) {
+                        document.querySelector("#MergePhoto").src = json.photo;
+                    }else{
+                        alert(json.message);
+                    }
+                }
+            };
+        }
+    </script>
+    <style>
+        img {
+            max-height: calc(100% - 1.5em);
+            max-width: 100%;
+        }
+
+        img[src=""] {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+<div style="position: fixed;left: 0;right: 0;top:0;bottom: 50%;">
+    <div style="padding:0.5em;box-sizing: border-box;border:1px solid #CCCCCC;position: absolute;left: 0;right:  50%;top:0;bottom:0;">
+        <label>左边图片：<input type="file" onchange="onChange.call(this,'left')"></label><br/>
+        <img id="left_img" src="" alt="左边图片"/>
+    </div>
+    <div style="padding:0.5em;box-sizing: border-box;border:1px solid #CCCCCC;position: absolute;left:  50%;right: 0;top:0;bottom: 0;">
+        <label>右边图片：<input type="file" onchange="onChange.call(this,'right')"></label><br/>
+        <img id="right_img" src="" alt="右边图片"/>
+    </div>
+</div>
+<div style="padding:0.5em;box-sizing: border-box;border:1px solid #CCCCCC;position: fixed;left: 0;right: 0;top: 50%;bottom: 0;">
+    <button onclick="MergePhoto()">合并</button>
+    <br/>
+    <img id="MergePhoto" src="" alt="合并之后图片">
+
+</div>
+</body>
+</html>

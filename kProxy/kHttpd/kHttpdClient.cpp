@@ -7,6 +7,7 @@
 #include "kHttpd.h"
 #include <CGI/kCGI.h>
 #include <string>
+#include <utility>
 #include <vector>
 #include <cstring>
 #include <unistd.h>
@@ -55,14 +56,17 @@ kHttpdClient::kHttpdClient(kHttpd *parent, int fd) {
 }
 
 kHttpdClient::kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, std::string> &header,
+                           std::vector<unsigned char> data, unsigned long int split_index, bool is_split_n,
                            std::string method,
                            std::string url_path,
                            std::string http_version) {
     init(parent, fd);
-    this->url_path = url_path;
-    this->method = method;
-    this->http_version = http_version;
+    this->url_path = std::move(url_path);
+    this->method = std::move(method);
+    this->http_version = std::move(http_version);
     this->header = header;
+    /********* 读取body数据内容 *********/
+    body_data.insert(body_data.end(), data.begin() + split_index, data.end());
 }
 
 void kHttpdClient::init(kHttpd *_parent, int _fd) {
@@ -92,6 +96,7 @@ int kHttpdClient::run() {
     unsigned long int split_index = 0;
     bool is_split_n = true;
 
+    ssize_t ContentLength = 0;
     if (header.empty()) {
         /********* 读取数据内容 *********/
         do {
@@ -151,15 +156,21 @@ int kHttpdClient::run() {
         } while (split_index == 0);
         /********* 初始化http头 *********/
         init_header((const char *) data.data(), split_index, is_split_n);
+
+        if (header.find("Content-Length") != header.end()) {
+            ContentLength = stoll(header["Content-Length"]);
+        } else if (header.find("content-length") != header.end()) {
+            ContentLength = stoll(header["content-length"]);
+        }
+        /********* 读取body数据内容 *********/
+        body_data.insert(body_data.end(), data.begin() + split_index, data.end());
+    }else {
+        if (header.find("Content-Length") != header.end()) {
+            ContentLength = stoll(header["Content-Length"]);
+        } else if (header.find("content-length") != header.end()) {
+            ContentLength = stoll(header["content-length"]);
+        }
     }
-    ssize_t ContentLength = 0;
-    if (header.find("Content-Length") != header.end()) {
-        ContentLength = stoll(header["Content-Length"]);
-    } else if (header.find("content-length") != header.end()) {
-        ContentLength = stoll(header["content-length"]);
-    }
-    /********* 读取body数据内容 *********/
-    body_data.insert(body_data.end(), data.begin() + split_index, data.end());
     if (ContentLength > 0) {
         while (body_data.size() < ContentLength) {
             vector<unsigned char> buffer;

@@ -48,27 +48,52 @@ include_directories(
 
 find_library(dl dl)
 find_library(pthread pthread)
-if (APPLE)
-    find_package(libevent REQUIRED)
-    find_package(openssl REQUIRED)
-else ()
-    find_package(libevent)
-    find_library(libevent libevent)
-    find_package(openssl)
-    find_library(openssl openssl)
+
+
+find_package(OpenCV)
+if (OpenCV_FOUND)
+    add_definitions(-DENABLE_OPENCV)
+    # If the package has been found, several variables will
+    # be set, you can find the full list with descriptions
+    # in the OpenCVConfig.cmake file.
+    # Print some message showing some of them
+    message(STATUS "OpenCV library status:")
+    message(STATUS "    version: ${OpenCV_VERSION}")
+    message(STATUS "    libraries: ${OpenCV_LIBS}")
+    message(STATUS "    libraries: ${OpenCV_LIBRARIES}")
+    message(STATUS "    lib_dir: ${OpenCV_LIB_DIR}")
+    message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+    link_directories(${OpenCV_DIR})
+    include_directories(
+            ${OpenCV_INCLUDE_DIRS}
+    )
+
 endif ()
-include_directories(
-        ${LIBEVENT_INCLUDE_DIRS}
-        ${OPENSSL_INCLUDE_DIR}
-)
+
+find_package(PkgConfig REQUIRED)
+pkg_search_module(OPENSSL REQUIRED openssl)
+if (OPENSSL_FOUND)
+    add_definitions(-DENABLE_OPENSSL)
+
+    include_directories(${OPENSSL_INCLUDE_DIRS})
+    message(STATUS "OPENSSL library status:")
+    message(STATUS "    ${OPENSSL_VERSION}")
+    message(STATUS "    libraries: ${OPENSSL_LIBRARIES}")
+    message(STATUS "    lib_dir: ${OPENSSL_LIBRARY_DIRS}")
+    message(STATUS "    include path: ${OPENSSL_INCLUDE_DIRS}")
+    include_directories(${OPENSSL_INCLUDE_DIRS})
+    link_directories(${OPENSSL_LIBRARY_DIRS})
+
+endif ()
 if (APPLE)
     link_directories(/usr/local/lib/)
 endif ()
-if (LIBEVENT_LIBRARIES MATCHES "")
-    # message("${LIBEVENT_STATIC_LIBRARIES} ${LIBEVENT_SHARED_LIBRARIES}")
-    set(LIBEVENT_LIBRARIES event)
-endif ()
 
+
+#    get_cmake_property(_variableNames VARIABLES)
+#    foreach (_variableName ${_variableNames})
+#        message(STATUS "${_variableName}=${${_variableName}}")
+#    endforeach()
 
 #aux_source_directory(kHttpd srcSource)
 FILE(GLOB_RECURSE srcSource
@@ -92,8 +117,7 @@ target_compile_definitions(
 target_link_libraries(kProxy
         ${dl_LIBRARIES}
         ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
-        ${LIBEVENT_LIBRARIES} ${LIBEVENT_SHARED_LIBRARIES}
-        ${libevhtp_LIBRARIES}
+        ${OpenCV_LIBS}
         ${libTools_LIBRARIES}
         ${wsock32_LIBS}
         )

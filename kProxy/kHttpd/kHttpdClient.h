@@ -33,7 +33,9 @@ public:
 
     kHttpdClient(kHttpd *parent, int fd);
 
-    kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, std::string> &header, std::string method,
+    kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, std::string> &header,
+                 std::vector<unsigned char> data, unsigned long int split_index, bool is_split_n,
+                 std::string method,
                  std::string url_path,
                  std::string http_version);
 
