@@ -11,10 +11,22 @@ add_subdirectory(clangTools)
 get_property(libTools_LIBRARIES GLOBAL PROPERTY "libTools_LIBRARIES")
 INCLUDE_DIRECTORIES(clangTools/src)
 
+include(CheckSymbolExists)
+include(CheckCXXSymbolExists)
+
+
 if (WIN32)
 else ()
     find_library(dl dl)
-    set(dl_LIBRARIES dl)
+    set(dl_LIBRARIES dl pthread)
+
+    check_symbol_exists("std::filesystem" "filesystem" HAVE_FILESYSTEM)
+    check_symbol_exists("std::experimental::filesystem" "experimental/filesystem" HAVE_EXPERIMENTAL_FILESYSTEM)
+    if (HAVE_EXPERIMENTAL_FILESYSTEM)
+        add_definitions(-DHAVE_EXPERIMENTAL_FILESYSTEM)
+        set(dl_LIBRARIES ${dl_LIBRARIES} stdc++fs)
+    endif ()
+
 endif ()
 
 
