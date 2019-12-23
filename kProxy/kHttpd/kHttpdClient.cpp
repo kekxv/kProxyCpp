@@ -164,7 +164,7 @@ int kHttpdClient::run() {
         }
         /********* 读取body数据内容 *********/
         body_data.insert(body_data.end(), data.begin() + split_index, data.end());
-    }else {
+    } else {
         if (header.find("Content-Length") != header.end()) {
             ContentLength = stoll(header["Content-Length"]);
         } else if (header.find("content-length") != header.end()) {
@@ -209,6 +209,9 @@ int kHttpdClient::run() {
 
     try {
         if (0 > parent->check_host_path(this, header["Host"], method, url_path)) {
+            if (!this->ResponseContent.empty()) {
+                throw std::exception();
+            }
             if (parent->web_root_path.empty()) {
                 throw std::exception();
             } else {
@@ -269,8 +272,10 @@ int kHttpdClient::run() {
         }
     } catch (std::exception &e) {
         this->response_code = HttpResponseCode::ResponseCode::NotFound;
-        string body = "未找到页面:" + url_path;
-        this->ResponseContent.insert(ResponseContent.begin(), &body.c_str()[0], &body.c_str()[body.size()]);
+        if (this->ResponseContent.empty()) {
+            string body = "未找到页面:" + url_path;
+            this->ResponseContent.insert(ResponseContent.begin(), &body.c_str()[0], &body.c_str()[body.size()]);
+        }
     }
 
 

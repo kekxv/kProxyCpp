@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
                               }
                               auto ret_str = retData.ToString();
                               self->ResponseContent.insert(self->ResponseContent.end(), ret_str.begin(), ret_str.end());
-                              return ret;
+                              return 0;
                           } catch (std::exception &e) {
                               CJsonObject retData;
                               retData.Add("code", -1);
