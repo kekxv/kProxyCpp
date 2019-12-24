@@ -7,7 +7,7 @@ using namespace std::experimental;
 
 int main()
 {
-    filesystem::exists("./";
+    filesystem::exists("./");
 
     return 0;
 }

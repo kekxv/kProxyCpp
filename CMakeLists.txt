@@ -13,7 +13,6 @@ INCLUDE_DIRECTORIES(clangTools/src)
 
 include(CheckSymbolExists)
 include(CheckCXXSymbolExists)
-include(CheckCxxSourceCompiles)
 
 
 if (WIN32)
