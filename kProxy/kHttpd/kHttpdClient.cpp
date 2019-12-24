@@ -11,7 +11,14 @@
 #include <vector>
 #include <cstring>
 #include <unistd.h>
+
+#ifdef HAVE_EXPERIMENTAL_FILESYSTEM
+#include <experimental/filesystem>
+using namespace std::experimental;
+#else
 #include <filesystem>
+#endif
+
 #include <sstream>
 
 using namespace std;

@@ -13,6 +13,7 @@ INCLUDE_DIRECTORIES(clangTools/src)
 
 include(CheckSymbolExists)
 include(CheckCXXSymbolExists)
+include(CheckCxxSourceCompiles)
 
 
 if (WIN32)
@@ -20,8 +21,18 @@ else ()
     find_library(dl dl)
     set(dl_LIBRARIES dl pthread)
 
-    check_symbol_exists("std::filesystem" "filesystem" HAVE_FILESYSTEM)
-    check_symbol_exists("std::experimental::filesystem" "experimental/filesystem" HAVE_EXPERIMENTAL_FILESYSTEM)
+    try_compile(HAVE_EXPERIMENTAL_FILESYSTEM "${CMAKE_BINARY_DIR}/temp"
+            "${CMAKE_SOURCE_DIR}/tests/has_filesystem.cc"
+            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+            LINK_LIBRARIES stdc++fs)
+
+    if(HAVE_EXPERIMENTAL_FILESYSTEM)
+        message(STATUS "Compiler has filesystem support")
+    else()
+        #   .... You could also try searching for boost::filesystem here.
+        # message(FATAL_ERROR "Compiler is missing filesystem capabilities")
+    endif(HAVE_EXPERIMENTAL_FILESYSTEM)
+
     if (HAVE_EXPERIMENTAL_FILESYSTEM)
         add_definitions(-DHAVE_EXPERIMENTAL_FILESYSTEM)
         set(dl_LIBRARIES ${dl_LIBRARIES} stdc++fs)
