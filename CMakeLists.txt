@@ -92,8 +92,8 @@ if (OpenCV_FOUND)
 
 endif ()
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(OPENSSL REQUIRED openssl)
+find_package(PkgConfig)
+pkg_search_module(OPENSSL openssl)
 if (OPENSSL_FOUND)
     add_definitions(-DENABLE_OPENSSL)
 
