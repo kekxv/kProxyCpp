@@ -14,20 +14,21 @@ INCLUDE_DIRECTORIES(clangTools/src)
 include(CheckSymbolExists)
 include(CheckCXXSymbolExists)
 
+try_compile(HAVE_EXPERIMENTAL_FILESYSTEM "${CMAKE_BINARY_DIR}/temp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/has_filesystem.cpp"
+        CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+        LINK_LIBRARIES stdc++fs
+        )
 
+if(HAVE_EXPERIMENTAL_FILESYSTEM)
+    message(STATUS "Compiler has filesystem support")
+else()
 if (WIN32)
+    include_directories(tests)
 else ()
     find_library(dl dl)
     set(dl_LIBRARIES dl pthread)
 
-    try_compile(HAVE_EXPERIMENTAL_FILESYSTEM "${CMAKE_BINARY_DIR}/temp"
-            "${CMAKE_SOURCE_DIR}/tests/has_filesystem.cc"
-            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-            LINK_LIBRARIES stdc++fs)
-
-    if(HAVE_EXPERIMENTAL_FILESYSTEM)
-        message(STATUS "Compiler has filesystem support")
-    else()
         #   .... You could also try searching for boost::filesystem here.
         # message(FATAL_ERROR "Compiler is missing filesystem capabilities")
     endif(HAVE_EXPERIMENTAL_FILESYSTEM)
@@ -129,7 +130,10 @@ FILE(GLOB_RECURSE srcSource
 
 add_library(kProxy STATIC ${srcSource})
 
-add_executable(kProxyCpp main.cpp)
+if (WIN32)
+    set(getopt_src "tests/getopt.c")
+endif ()
+add_executable(kProxyCpp main.cpp ${getopt_src})
 
 
 target_compile_definitions(

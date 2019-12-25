@@ -1,6 +1,18 @@
 //
 // Created by caesar on 2019/12/1.
 //
+#ifdef WIN32
+
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mstcpip.h>
+#include <cstdio>
+
+#else
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include<unistd.h>
+#endif
 
 #include "kHttpdClient.h"
 #include "UTF8Url.h"
@@ -10,15 +22,24 @@
 #include <utility>
 #include <vector>
 #include <cstring>
-#include <unistd.h>
 
+#ifdef WIN32
+
+#include <experimental/filesystem>
+
+using namespace std;
+using namespace std::experimental;
+using namespace std::experimental::filesystem;
+#else
 #ifdef HAVE_EXPERIMENTAL_FILESYSTEM
 #include <experimental/filesystem>
 using namespace std::experimental;
 #else
 #include <filesystem>
 #endif
+#endif
 
+#include <time.h>
 #include <sstream>
 
 using namespace std;
@@ -103,7 +124,7 @@ int kHttpdClient::run() {
     unsigned long int split_index = 0;
     bool is_split_n = true;
 
-    ssize_t ContentLength = 0;
+    long int ContentLength = 0;
     if (header.empty()) {
         /********* 读取数据内容 *********/
         do {
@@ -121,12 +142,20 @@ int kHttpdClient::run() {
             }
             if (0 == size) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return 0;
             } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return 0;
             }
@@ -144,7 +173,7 @@ int kHttpdClient::run() {
                 }
             }
             if (split_index == 0) {
-                for (ssize_t i = 0; i < size; i++) {
+                for (long int i = 0; i < size; i++) {
                     if (buffer[i] == '\r' && buffer[i + 1] == '\n') {
                         if (buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
                             split_index = data.size() + i + 4;
@@ -187,14 +216,22 @@ int kHttpdClient::run() {
             auto size = this->_socket->read(buffer);
             if (0 == size) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 fd = 0;
                 return fd;
                 break;
             } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 fd = 0;
                 return fd;
@@ -269,7 +306,7 @@ int kHttpdClient::run() {
                         }
                         inFile.close();
                         string type = "*";
-                        type = filepath.extension();
+                        type = (char *) filepath.extension().c_str();
                         if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
                             type = "*";
                         this->ContentType = kHttpdClient_HTTP_Content_Type[type];
@@ -307,11 +344,13 @@ string kHttpdClient::get_localtime(time_t now) {
     if (now <= 0)
         time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
 
+#ifdef WIN32
+    char *daytime = ctime(&now);
+#else
     timenow = localtime(&now);
-
     char daytime[100];
     asctime_r(timenow, daytime);
-
+#endif
     char year[20] = {0}, week[20] = {0}, day[20] = {0}, mon[20] = {0}, _time[20] = {0};
     sscanf(daytime, "%s %s %s %s %s", week, mon, day, _time, year);
     sprintf(localtm, "%s, %s %s %s %s GMT", week, day, mon, year, _time);
@@ -426,7 +465,7 @@ void kHttpdClient::send_header() {
 
 void kHttpdClient::send_body() {
     auto len = ResponseContent.size();
-    ssize_t offset = 0;
+    long int offset = 0;
     while (offset < len) {
         auto ret = this->_socket->send(ResponseContent.data(), offset, len - offset);
         if (0 >= ret)break;

@@ -5,7 +5,7 @@
 #ifndef KPROXYCPP_KCLIENT_H
 #define KPROXYCPP_KCLIENT_H
 
-#include <netinet/in.h>
+
 #include <logger.h>
 #include <vector>
 #include <map>

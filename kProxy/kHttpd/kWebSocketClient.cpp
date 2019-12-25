@@ -2,6 +2,19 @@
 // Created by caesar on 2019/12/11.
 //
 
+#ifdef WIN32
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mstcpip.h>
+#include <cstdio>
+#else
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include<unistd.h>
+#include <openssl/sha.h>
+#include <openssl/crypto.h>
+#endif
+
 #include "kWebSocketClient.h"
 #include <kHttpdClient.h>
 #include "UTF8Url.h"
@@ -9,13 +22,10 @@
 #include <string>
 #include <vector>
 #include <cstring>
-#include <unistd.h>
 #include <sstream>
 #include <base64.h>
 #include <SHA1.h>
 
-#include <openssl/sha.h>
-#include <openssl/crypto.h>
 
 #ifndef SHA_DIGEST_LENGTH
 #define SHA_DIGEST_LENGTH 20
@@ -76,12 +86,20 @@ int kWebSocketClient::run() {
         }
         if (0 == size) {//说明socket关闭
             _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
+#ifdef WIN32
+            shutdown(fd, SD_BOTH);
+#else
             shutdown(fd, SHUT_RDWR);
+#endif
             close(fd);
             return 0;
         } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
             _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
+#ifdef WIN32
+            shutdown(fd, SD_BOTH);
+#else
             shutdown(fd, SHUT_RDWR);
+#endif
             close(fd);
             return 0;
         }
@@ -99,7 +117,7 @@ int kWebSocketClient::run() {
             }
         }
         if (split_index == 0) {
-            for (ssize_t i = 0; i < size; i++) {
+            for (long int i = 0; i < size; i++) {
                 if (buffer[i] == '\r' && buffer[i + 1] == '\n') {
                     if (buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
                         split_index = data.size() + i + 4;
@@ -158,10 +176,13 @@ string kWebSocketClient::get_localtime(time_t now) {
     if (now <= 0)
         time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
 
+#ifdef WIN32
+    char *daytime = ctime(&now);
+#else
     timenow = localtime(&now);
-
     char daytime[100];
     asctime_r(timenow, daytime);
+#endif
 
     char year[20] = {0}, week[20] = {0}, day[20] = {0}, mon[20] = {0}, _time[20] = {0};
     sscanf(daytime, "%s %s %s %s %s", week, mon, day, _time, year);
@@ -294,12 +315,21 @@ int kWebSocketClient::_run() {
                 auto size = this->_socket->read(buffer);
                 if (0 == size) {//说明socket关闭
                     _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
+#ifdef WIN32
+                    shutdown(fd, SD_BOTH);
+#else
                     shutdown(fd, SHUT_RDWR);
+#endif
+
                     close(fd);
                     return 0;
                 } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                     _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:%d", size, fd, errno);
+#ifdef WIN32
+                    shutdown(fd, SD_BOTH);
+#else
                     shutdown(fd, SHUT_RDWR);
+#endif
                     close(fd);
                     return 0;
                 }
@@ -352,18 +382,30 @@ int kWebSocketClient::parse(std::vector<unsigned char> &data, unsigned char &FIN
             auto $bytes = this->_socket->read($buffer1);
             if (0 == $bytes) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", $bytes, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             } else if (0 > $bytes && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:%d", $bytes, fd, errno);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             }
             if ($bytes < 7) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", $bytes, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             }
@@ -392,18 +434,30 @@ int kWebSocketClient::parse(std::vector<unsigned char> &data, unsigned char &FIN
             auto $bytes = this->_socket->read($buffer1);
             if (0 == $bytes) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", $bytes, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             } else if (0 > $bytes && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:%d", $bytes, fd, errno);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             }
             if ($bytes < 7) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", $bytes, fd);
+#ifdef WIN32
+                shutdown(fd, SD_BOTH);
+#else
                 shutdown(fd, SHUT_RDWR);
+#endif
                 close(fd);
                 return -1;
             }
@@ -427,7 +481,7 @@ int kWebSocketClient::parse(std::vector<unsigned char> &data, unsigned char &FIN
         next = $len;
     }
     if ($need_masks) {
-        for (ssize_t $index = 0; $index < next; $index++) {
+        for (long int $index = 0; $index < next; $index++) {
             data[$index] = data[$index] ^ $masks[$index % 4];
         }
     }
@@ -465,7 +519,7 @@ int kWebSocketClient::build(std::vector<unsigned char> &send_data, const std::ve
 
     if ($need_masks) {
         send_data.insert(send_data.end(), &$masks[0], &$masks[4]);
-        for (ssize_t $index = 0; $index < len; $index++) {
+        for (long int $index = 0; $index < len; $index++) {
             send_data.push_back(data[$index] ^ $masks[$index % 4]);
         }
     } else {

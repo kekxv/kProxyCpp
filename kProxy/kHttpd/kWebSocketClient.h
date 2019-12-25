@@ -5,7 +5,6 @@
 #ifndef KPROXYCPP_KWEBSOCKETCLIENT_H
 #define KPROXYCPP_KWEBSOCKETCLIENT_H
 
-#include <netinet/in.h>
 #include <logger.h>
 #include <vector>
 #include <map>

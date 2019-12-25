@@ -3,11 +3,18 @@
 
 #include <cstring>
 #include <cstdio>
+#ifdef WIN32
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mstcpip.h>
+#include <stdio.h>
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/un.h>
+#endif
 #include <regex>
 #include <logger.h>
 
@@ -23,7 +30,7 @@ kCGI::kCGI(const string &ip, int port) {
 //    assert(fd > 0);
     if (fd <= 0)throw kCGIException(1);
 
-    bzero(&server_address, sizeof(server_address));
+    memset(&server_address,0, sizeof(server_address));
 
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = inet_addr(ip.c_str());
@@ -38,6 +45,8 @@ kCGI::kCGI(const string &ip, int port) {
 }
 
 kCGI::kCGI(const string &SockFilePath) {
+#ifdef WIN32
+#else
     int rc;
     int fd;
     struct sockaddr_un s_un{};
@@ -52,6 +61,7 @@ kCGI::kCGI(const string &SockFilePath) {
 
     this->SockFd = fd;
     this->requestId = kCGI::RequestId++;
+#endif
 }
 
 kCGI::~kCGI() {
@@ -98,7 +108,7 @@ FCGI_BeginRequestBody kCGI::makeBeginRequestBody(int role, int keepConnection) {
     body.roleB0 = (unsigned char) (role & 0xff);
     /* 大于0长连接，否则短连接 */
     body.flags = (unsigned char) ((keepConnection) ? FCGI_KEEP_CONN : 0);
-    bzero(&body.reserved, sizeof(body.reserved));
+    memset(&body.reserved, 0, sizeof(body.reserved));
     return body;
 }
 
@@ -150,7 +160,7 @@ int kCGI::sendParams(const char *name, const char *value) {
 
     unsigned char bodyBuff[PARAMS_BUFF_LEN];
 
-    bzero(bodyBuff, sizeof(bodyBuff));
+    memset(bodyBuff, 0,sizeof(bodyBuff));
 
     /* 保存 body 的长度 */
     int bodyLen;
@@ -162,13 +172,14 @@ int kCGI::sendParams(const char *name, const char *value) {
     nameValueHeader = makeHeader(FCGI_PARAMS, this->requestId, bodyLen, 0);
 
     int nameValueRecordLen = bodyLen + FCGI_HEADER_LEN;
-    char nameValueRecord[nameValueRecordLen];
+    char *nameValueRecord = new char[nameValueRecordLen];
 
     /* 将头和body拷贝到一块buffer 中只需调用一次write */
     memcpy(nameValueRecord, (char *) &nameValueHeader, FCGI_HEADER_LEN);
     memcpy(nameValueRecord + FCGI_HEADER_LEN, bodyBuff, bodyLen);
 
     rc = write(this->SockFd, nameValueRecord, nameValueRecordLen);
+    delete []nameValueRecord;
     if (rc != nameValueRecordLen) {
         return 0;
     }
@@ -208,7 +219,7 @@ size_t kCGI::ReadFromPhp(map<string, string> &header, vector<unsigned char> &dat
         if (responderHeader.type == FCGI_STDOUT) {
             /* 获取内容长度 */
             contentLen = (responderHeader.contentLengthB1 << 8) + (responderHeader.contentLengthB0);
-            bzero(content, CONTENT_BUFF_LEN);
+            memset(content, 0,CONTENT_BUFF_LEN);
 
             ret = Read(content, contentLen);
             if (ret > 0) {
@@ -225,7 +236,7 @@ size_t kCGI::ReadFromPhp(map<string, string> &header, vector<unsigned char> &dat
         } //end of type FCGI_STDOUT
         else if (responderHeader.type == FCGI_STDERR) {
             contentLen = (responderHeader.contentLengthB1 << 8) + (responderHeader.contentLengthB0);
-            bzero(content, CONTENT_BUFF_LEN);
+            memset(content, 0,CONTENT_BUFF_LEN);
 
             ret = Read(content, contentLen);
             if (ret > 0) {
@@ -257,7 +268,7 @@ size_t kCGI::ReadFromPhp(map<string, string> &header, vector<unsigned char> &dat
     char *da = new char[offset + 1 - 4];
     memcpy(da, data.data(), offset - 4);
     da[offset - 4] = 0;
-    if(data[offset]!='<'){
+    if (data[offset] != '<') {
         int ret = offset;
     }
     string _header(da);

@@ -1,3 +1,14 @@
+#ifdef WIN32
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mstcpip.h>
+#include <cstdio>
+#else
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include<unistd.h>
+#endif
+
 #include <iostream>
 #include <kHttpd.h>
 #include <kWebSocketClient.h>
@@ -259,6 +270,8 @@ int main(int argc, char **argv) {
                 exit(EXIT_SUCCESS);
         }
     }
+#ifdef WIN32
+#else
     //判断是否设置了-d，以daemon运行
     if (httpd_option_daemon) {
         pid_t pid;
@@ -272,7 +285,7 @@ int main(int argc, char **argv) {
             exit(EXIT_SUCCESS);
         }
     }
-
+#endif
 
     kHttpd::Init();
 
@@ -383,5 +396,6 @@ int main(int argc, char **argv) {
         // return ((kWebSocketClient *) kClient)->send(data, type) >= 0;
     }, "/ws");
     kProxy.listen(20, port, ip.c_str());
+	WSACleanup();
     return 0;
 }
