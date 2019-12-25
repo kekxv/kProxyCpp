@@ -143,20 +143,22 @@ int kHttpdClient::run() {
             if (0 == size) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
 #ifdef WIN32
-                shutdown(fd, SD_BOTH);
+                // shutdown(fd, SD_BOTH);
+                closesocket(fd);
 #else
                 shutdown(fd, SHUT_RDWR);
-#endif
                 close(fd);
+#endif
                 return 0;
             } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
 #ifdef WIN32
-                shutdown(fd, SD_BOTH);
+                //shutdown(fd, SD_BOTH);
+                closesocket(fd);
 #else
                 shutdown(fd, SHUT_RDWR);
-#endif
                 close(fd);
+#endif
                 return 0;
             }
             if (!data.empty()) {
@@ -173,7 +175,7 @@ int kHttpdClient::run() {
                 }
             }
             if (split_index == 0) {
-                for (long int i = 0; i < size; i++) {
+                for (long int i = 0; i < size - 3; i++) {
                     if (buffer[i] == '\r' && buffer[i + 1] == '\n') {
                         if (buffer[i + 2] == '\r' && buffer[i + 3] == '\n') {
                             split_index = data.size() + i + 4;
@@ -187,7 +189,7 @@ int kHttpdClient::run() {
                     }
                 }
             }
-            data.insert(data.end(), &buffer[0], &buffer[size]);
+            data.insert(data.end(), buffer.begin(), buffer.end());
 
         } while (split_index == 0);
         /********* 初始化http头 *********/
@@ -217,22 +219,24 @@ int kHttpdClient::run() {
             if (0 == size) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
 #ifdef WIN32
-                shutdown(fd, SD_BOTH);
+//                shutdown(fd, SD_BOTH);
+                closesocket(fd);
 #else
                 shutdown(fd, SHUT_RDWR);
-#endif
                 close(fd);
+#endif
                 fd = 0;
                 return fd;
                 break;
             } else if (0 > size && (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)) {
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d is errno:", size, fd, errno);
 #ifdef WIN32
-                shutdown(fd, SD_BOTH);
+                //shutdown(fd, SD_BOTH);
+                closesocket(fd);
 #else
                 shutdown(fd, SHUT_RDWR);
-#endif
                 close(fd);
+#endif
                 fd = 0;
                 return fd;
                 break;
@@ -306,7 +310,12 @@ int kHttpdClient::run() {
                         }
                         inFile.close();
                         string type = "*";
-                        type = (char *) filepath.extension().c_str();
+#ifdef WIN32
+                        auto _ = filepath.extension();
+						type = _.string();
+#else
+                        type = filepath.extension();
+#endif
                         if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
                             type = "*";
                         this->ContentType = kHttpdClient_HTTP_Content_Type[type];
@@ -317,7 +326,7 @@ int kHttpdClient::run() {
     } catch (std::exception &e) {
         this->response_code = HttpResponseCode::ResponseCode::NotFound;
         if (this->ResponseContent.empty()) {
-            string body = "未找到页面:" + url_path;
+            string body = string("cann't found ") + url_path;
             this->ResponseContent.insert(ResponseContent.begin(), &body.c_str()[0], &body.c_str()[body.size()]);
         }
     }
@@ -345,7 +354,9 @@ string kHttpdClient::get_localtime(time_t now) {
         time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
 
 #ifdef WIN32
-    char *daytime = ctime(&now);
+	struct tm tmnow = { 0 };
+	localtime_s(&tmnow, &now);
+    char *daytime = asctime(&tmnow);
 #else
     timenow = localtime(&now);
     char daytime[100];
@@ -360,31 +371,35 @@ string kHttpdClient::get_localtime(time_t now) {
 void kHttpdClient::init_header(const char *data, unsigned long int size, bool is_split_n) {
     unsigned long int offset = 0;
     int space_index = 0;
-    for (; offset < size; offset++) {
-        if (data[offset] == '\r' && data[offset + 1] == '\n') {
-            offset += 2;
-            break;
-        } else if (data[offset] == '\n') {
-            offset++;
-            break;
-        } else if (data[offset] == ' ') {
-            space_index++;
-        }
-        switch (space_index) {
-            case 0:
-                if (!method.empty() || data[offset] != ' ')
-                    method.push_back(data[offset]);
-                break;
-            case 1:
-                if (!url_path.empty() || data[offset] != ' ')
-                    url_path.push_back(data[offset]);
-                break;
-            default:
-                if (!http_version.empty() || data[offset] != ' ')
-                    http_version.push_back(data[offset]);
-                break;
-        }
-    }
+	if (method.empty()) {
+		for (; offset < size; offset++) {
+			if (data[offset] == '\r' && data[offset + 1] == '\n') {
+				offset += 2;
+				break;
+			}
+			else if (data[offset] == '\n') {
+				offset++;
+				break;
+			}
+			else if (data[offset] == ' ') {
+				space_index++;
+			}
+			switch (space_index) {
+			case 0:
+				if (!method.empty() || data[offset] != ' ')
+					method.push_back(data[offset]);
+				break;
+			case 1:
+				if (!url_path.empty() || data[offset] != ' ')
+					url_path.push_back(data[offset]);
+				break;
+			default:
+				if (!http_version.empty() || data[offset] != ' ')
+					http_version.push_back(data[offset]);
+				break;
+			}
+		}
+	}
     if (method.empty())method = "GET";
     if (url_path.empty())url_path = "/";
     if (http_version.empty())http_version = "HTTP/1.0";

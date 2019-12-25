@@ -114,7 +114,13 @@ int kHttpd::listen(int listen_count, unsigned short port, const char* ip) {
 #else
 		int num_ready = poll(poll_fd, list_len + 1, -1);
 #endif
-		if ((num_ready == -1) && (errno == EINTR)) {
+		if ((num_ready == -1) && 
+#ifdef WIN32
+			(WSAGetLastError() == WSAEINTR)
+#else
+			(errno == EINTR)
+#endif
+			) {
 			// lock.unlock();
 			delete[] poll_fd;
 			continue;        //被信号中断，继续等待
@@ -132,11 +138,12 @@ int kHttpd::listen(int listen_count, unsigned short port, const char* ip) {
 		else if (0 > num_ready) {
 			for (long int i = list_len - 1; i >= 0; i--) {
 #ifdef WIN32
-				shutdown(socket_fd_list[i], SD_BOTH);
+				// shutdown(socket_fd_list[i], SD_BOTH);
+                closesocket(socket_fd_list[i]);
 #else
 				shutdown(socket_fd_list[i], SHUT_RDWR);
-#endif
 				close(socket_fd_list[i]);
+#endif
 			}
 			socket_fd_list.clear();
 			delete[] poll_fd;
@@ -145,7 +152,14 @@ int kHttpd::listen(int listen_count, unsigned short port, const char* ip) {
 		if (poll_fd[list_len].revents > 0) {
 			int new_fd = kekxv::socket::accept(fd, nullptr, nullptr);
 			if (new_fd < 0) {
-				_logger->e(TAG, __LINE__, "Accept error in on_accept()");
+				_logger->e(TAG, __LINE__, "Accept error in on_accept()"); 
+#ifdef WIN32
+				_logger->e(TAG, __LINE__, "Accept error WSAGetLastError : %d", WSAGetLastError());
+				WSADATA wsa;
+				WSAStartup(MAKEWORD(2, 2), &wsa);
+                delete[] poll_fd;
+				return -1;
+#endif
 			}
 			else {
 				add_poll_check(new_fd);
@@ -171,11 +185,12 @@ int kHttpd::listen(int listen_count, unsigned short port, const char* ip) {
 					}
 					if (_fd > 0) {
 #ifdef WIN32
-						shutdown(_fd, SD_BOTH);
+						// shutdown(_fd, SD_BOTH);
+						closesocket(_fd);
 #else
 						shutdown(_fd, SHUT_RDWR);
-#endif
 						close(_fd);
+#endif
 						// self->add_poll_check(_fd);
 					}
 					// _logger->d(TAG, __LINE__, "======== client thread end ========");
@@ -188,11 +203,12 @@ int kHttpd::listen(int listen_count, unsigned short port, const char* ip) {
 				|| poll_fd[i].revents & POLLNVAL
 				) {
 #ifdef WIN32
-				shutdown(poll_fd[i].fd, SD_BOTH);
+				// shutdown(poll_fd[i].fd, SD_BOTH);
+                closesocket(poll_fd[i].fd);
 #else
 				shutdown(poll_fd[i].fd, SHUT_RDWR);
-#endif
 				close(poll_fd[i].fd);
+#endif
 				socket_fd_list.erase(socket_fd_list.begin() + i);
 				num_ready--;
 			}
