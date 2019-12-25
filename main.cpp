@@ -390,6 +390,10 @@ int main(int argc, char **argv) {
                                                                                                                    : -1;
             */
             return ((kWebSocketClient *) kClient)->send(data, type) >= 0 ? 0 : -1;
+        }else if (type == 8) {
+            int _fd = ((kWebSocketClient *) kClient)->get_fd();
+            // 关闭连接，可用于释放
+            return 0;
         } else {
             return -1;
         }

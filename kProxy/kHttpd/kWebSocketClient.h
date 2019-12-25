@@ -44,6 +44,7 @@ public:
      */
     int send(const std::vector<unsigned char> &data, unsigned char type);
     int send(const std::string &data);
+    inline int get_fd(){return fd;};
 
 private:
     kHttpd *parent = nullptr;
