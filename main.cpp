@@ -1,8 +1,10 @@
 #ifdef WIN32
+
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <mstcpip.h>
 #include <cstdio>
+
 #else
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -390,7 +392,7 @@ int main(int argc, char **argv) {
                                                                                                                    : -1;
             */
             return ((kWebSocketClient *) kClient)->send(data, type) >= 0 ? 0 : -1;
-        }else if (type == 8) {
+        } else if (type == 8) {
             int _fd = ((kWebSocketClient *) kClient)->get_fd();
             // 关闭连接，可用于释放
             return 0;
@@ -400,6 +402,8 @@ int main(int argc, char **argv) {
         // return ((kWebSocketClient *) kClient)->send(data, type) >= 0;
     }, "/ws");
     kProxy.listen(20, port, ip.c_str());
-	WSACleanup();
+#ifdef WIN32
+    WSACleanup();
+#endif
     return 0;
 }
