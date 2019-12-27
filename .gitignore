@@ -81,3 +81,5 @@ cmake-build-*
 
 bin
 build
+cmake-build-remote-z8350-local
+/cmake-build-*
