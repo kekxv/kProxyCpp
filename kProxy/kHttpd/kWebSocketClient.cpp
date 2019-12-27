@@ -13,8 +13,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include<unistd.h>
+#ifdef ENABLE_OPENSSL
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
+#endif
 #endif
 
 #include "kWebSocketClient.h"
