@@ -37,7 +37,8 @@ public:
                  std::vector<unsigned char> data, unsigned long int split_index, bool is_split_n,
                  std::string method,
                  std::string url_path,
-                 std::string http_version);
+                 std::string http_version,
+                 kekxv::socket *_socket);
 
     ~kHttpdClient();
 
@@ -45,6 +46,7 @@ public:
 
 private:
     kHttpd *parent = nullptr;
+    bool need_socket = true;
     int fd = 0;
     kekxv::socket *_socket = nullptr;
 

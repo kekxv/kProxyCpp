@@ -18,7 +18,9 @@
 #include <logger.h>
 #include <thread_pool.h>
 #include <CGI/kCGI.h>
-
+#ifdef ENABLE_OPENSSL
+#include <ssl_common.h>
+#endif
 
 class kHttpdClient;
 
@@ -52,6 +54,14 @@ public:
     bool isWebSocket = false;
 
     ~kHttpd();
+
+    /**
+     * 开启并设置 ssl 证书
+     * @param _certificate
+     * @param _private_key
+     * @return 0 开启成功
+     */
+    void set_ssl_key(const std::string &_certificate, const std::string &_private_key);
 
     int listen(int listen_count = 20, unsigned short port = 8080, const char *ip = "0.0.0.0");
 
@@ -97,6 +107,14 @@ private:
     // 是否关闭提交
     std::atomic<bool> stoped{false};
     std::vector<int> socket_fd_list;
+    std::string certificate;
+    std::string private_key;
+
+#ifdef ENABLE_OPENSSL
+    bool use_ssl = false;
+    std::mutex sslLock;
+    ssl_common * sslCommon = nullptr;
+#endif
 
     void add_poll_check(int new_fd);
 

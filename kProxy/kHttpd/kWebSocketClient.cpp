@@ -88,6 +88,7 @@ int kWebSocketClient::run() {
                 size = this->_socket->read(buffer);
             }
         }
+        // _logger->d(TAG,__LINE__,"%s",buffer.data());
         if (0 == size) {//说明socket关闭
             _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
 #ifdef WIN32
@@ -155,7 +156,7 @@ int kWebSocketClient::run() {
     }
     // _logger->i(TAG, __LINE__, "%s", SecWebSocketAccept.c_str());
     if ((connection != string("upgrade")) || (upgrade != string("websocket"))) {
-        return kHttpdClient(parent, fd, header, data, split_index, is_split_n, method, url_path, http_version).run();
+        return kHttpdClient(parent, fd, header, data, split_index, is_split_n, method, url_path, http_version,_socket).run();
     }
 
     SecWebSocketKey = logger::trim(header["sec-websocket-key"]);

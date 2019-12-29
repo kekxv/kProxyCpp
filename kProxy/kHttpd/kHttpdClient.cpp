@@ -9,9 +9,11 @@
 #include <cstdio>
 
 #else
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include<unistd.h>
+
 #endif
 
 #include "kHttpdClient.h"
@@ -35,7 +37,9 @@ using namespace std::experimental::filesystem;
 #include <experimental/filesystem>
 using namespace std::experimental;
 #else
+
 #include <filesystem>
+
 #endif
 #endif
 
@@ -87,7 +91,12 @@ kHttpdClient::kHttpdClient(kHttpd *parent, int fd, const std::map<std::string, s
                            std::vector<unsigned char> data, unsigned long int split_index, bool is_split_n,
                            std::string method,
                            std::string url_path,
-                           std::string http_version) {
+                           std::string http_version,
+                           kekxv::socket *_socket) {
+    this->fd = fd;
+    this->_socket = _socket;
+    this->need_socket = false;
+
     init(parent, fd);
     this->url_path = std::move(url_path);
     this->method = std::move(method);
@@ -110,12 +119,16 @@ void kHttpdClient::init(kHttpd *_parent, int _fd) {
     socklen_t sin_size = 0;
     getpeername(_fd, (struct sockaddr *) &remote_addr, &sin_size);
     this->parent = _parent;
-    this->fd = _fd;
-    this->_socket = new kekxv::socket(_fd);
+    if (this->_socket == nullptr) {
+        this->fd = _fd;
+        this->_socket = new kekxv::socket(_fd);
+    }
 }
 
 kHttpdClient::~kHttpdClient() {
-    delete this->_socket;
+    if (need_socket) {
+        delete this->_socket;
+    }
 }
 
 
@@ -219,8 +232,8 @@ int kHttpdClient::run() {
             if (0 == size) {//说明socket关闭
                 _logger->w(TAG, __LINE__, "read size is %ld for socket: %d", size, fd);
 #ifdef WIN32
-//                shutdown(fd, SD_BOTH);
-                closesocket(fd);
+                //                shutdown(fd, SD_BOTH);
+                                closesocket(fd);
 #else
                 shutdown(fd, SHUT_RDWR);
                 close(fd);
@@ -241,7 +254,7 @@ int kHttpdClient::run() {
                 return fd;
                 break;
             }
-            body_data.insert(body_data.end(), &buffer[0], &buffer[size]);
+            body_data.insert(body_data.end(), buffer.begin(), buffer.end());
         };
     }
 
@@ -312,7 +325,7 @@ int kHttpdClient::run() {
                         string type = "*";
 #ifdef WIN32
                         auto _ = filepath.extension();
-						type = _.string();
+                        type = _.string();
 #else
                         type = filepath.extension();
 #endif
@@ -354,8 +367,8 @@ string kHttpdClient::get_localtime(time_t now) {
         time(&now);     //time函数读取现在的时间(国际标准时间非北京时间)，然后传值给now
 
 #ifdef WIN32
-	struct tm tmnow = { 0 };
-	localtime_s(&tmnow, &now);
+    struct tm tmnow = { 0 };
+    localtime_s(&tmnow, &now);
     char *daytime = asctime(&tmnow);
 #else
     timenow = localtime(&now);
@@ -371,35 +384,33 @@ string kHttpdClient::get_localtime(time_t now) {
 void kHttpdClient::init_header(const char *data, unsigned long int size, bool is_split_n) {
     unsigned long int offset = 0;
     int space_index = 0;
-	if (method.empty()) {
-		for (; offset < size; offset++) {
-			if (data[offset] == '\r' && data[offset + 1] == '\n') {
-				offset += 2;
-				break;
-			}
-			else if (data[offset] == '\n') {
-				offset++;
-				break;
-			}
-			else if (data[offset] == ' ') {
-				space_index++;
-			}
-			switch (space_index) {
-			case 0:
-				if (!method.empty() || data[offset] != ' ')
-					method.push_back(data[offset]);
-				break;
-			case 1:
-				if (!url_path.empty() || data[offset] != ' ')
-					url_path.push_back(data[offset]);
-				break;
-			default:
-				if (!http_version.empty() || data[offset] != ' ')
-					http_version.push_back(data[offset]);
-				break;
-			}
-		}
-	}
+    if (method.empty()) {
+        for (; offset < size; offset++) {
+            if (data[offset] == '\r' && data[offset + 1] == '\n') {
+                offset += 2;
+                break;
+            } else if (data[offset] == '\n') {
+                offset++;
+                break;
+            } else if (data[offset] == ' ') {
+                space_index++;
+            }
+            switch (space_index) {
+                case 0:
+                    if (!method.empty() || data[offset] != ' ')
+                        method.push_back(data[offset]);
+                    break;
+                case 1:
+                    if (!url_path.empty() || data[offset] != ' ')
+                        url_path.push_back(data[offset]);
+                    break;
+                default:
+                    if (!http_version.empty() || data[offset] != ' ')
+                        http_version.push_back(data[offset]);
+                    break;
+            }
+        }
+    }
     if (method.empty())method = "GET";
     if (url_path.empty())url_path = "/";
     if (http_version.empty())http_version = "HTTP/1.0";

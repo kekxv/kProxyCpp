@@ -6,9 +6,11 @@
 #include <cstdio>
 
 #else
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include<unistd.h>
+
 #endif
 
 #include <iostream>
@@ -223,6 +225,8 @@ void show_help() {
             "\t -l\t设置监听地址 默认 0.0.0.0\n"
             "\t -p\t设置端口号 默认8080\n"
             "\t -P\t开启PHP，并设置 PHP 端口号\n"
+            "\t -k\tssl 秘钥\n"
+            "\t -K\tssl 公钥\n"
             "\t -n\t线程数量，默认 20，WebSocket 模式建议设置大一点\n"
             "\t -L\t静态文件路径 \n"
             "\t -h\t帮助信息 \n"
@@ -239,9 +243,11 @@ int main(int argc, char **argv) {
     unsigned short php_port = 9000;
     string web_root;
     unsigned int thread_num = 20;
+    std::string certificate;
+    std::string private_key;
 
     int opt;
-    const char *string = "wdp:P:n:L:l:h?";
+    const char *string = "wdp:P:n:L:l:k:K:h?";
     while ((opt = getopt(argc, argv, string)) != -1) {
         switch (opt) {
             case 'w':
@@ -263,6 +269,12 @@ int main(int argc, char **argv) {
                 break;
             case 'L':
                 web_root = optarg;
+                break;
+            case 'k':
+                private_key = optarg;
+                break;
+            case 'K':
+                certificate = optarg;
                 break;
             case 'l':
                 ip = optarg;
@@ -293,6 +305,7 @@ int main(int argc, char **argv) {
 
 
     kHttpd kProxy(web_root.c_str(), thread_num);
+    kProxy.set_ssl_key(certificate, private_key);
     kProxy.isWebSocket = isWebSocket;
     if (!php_ip.empty() && php_port > 0) {
         kProxy.init_php(php_ip.c_str(), php_port);
@@ -401,6 +414,8 @@ int main(int argc, char **argv) {
         }
         // return ((kWebSocketClient *) kClient)->send(data, type) >= 0;
     }, "/ws");
+
+
     kProxy.listen(20, port, ip.c_str());
 #ifdef WIN32
     WSACleanup();

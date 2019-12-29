@@ -1,4 +1,11 @@
 cmake_minimum_required(VERSION 3.0)
+
+if ("${PROJECT_NAME}" STREQUAL "Project")
+    set(kProxyCpp_Other_Project ON)
+elseif ("${PROJECT_NAME}" STREQUAL "")
+    set(kProxyCpp_Other_Project ON)
+endif ()
+
 project(kProxyCpp)
 set(CMAKE_DEBUG_POSTFIX "d")
 
@@ -127,7 +134,6 @@ add_library(kProxy STATIC ${srcSource})
 if (WIN32)
     set(getopt_src "tests/getopt.c")
 endif ()
-add_executable(kProxyCpp main.cpp ${getopt_src})
 
 
 target_compile_definitions(
@@ -141,18 +147,53 @@ target_link_libraries(kProxy
         ${libTools_LIBRARIES}
         ${wsock32_LIBS}
         )
-target_link_libraries(kProxyCpp kProxy)
 
 
 option(ENABLE_FILENAME "option for FILENAME" ON)
 if (ENABLE_FILENAME)
     #重新定义当前目标的源文件的 __FILENAME__ 宏
     redefine_file_macro(kProxy)
-    redefine_file_macro(kProxyCpp)
 endif ()
 
+if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
+    add_executable(kProxyCpp main.cpp ${getopt_src})
+    target_link_libraries(kProxyCpp kProxy)
+    option(ENABLE_FILENAME "option for FILENAME" ON)
+    if (ENABLE_FILENAME)
+        #重新定义当前目标的源文件的 __FILENAME__ 宏
+        redefine_file_macro(kProxyCpp)
+    endif ()
+
+endif ()
+
+option(ENABLE_TEST "option for FILENAME" ON)
+if (ENABLE_TEST AND OPENSSL_FOUND)
+    add_executable(openssl_server tests/openssl_server.cpp)
+    add_executable(openssl_client tests/openssl_client.cpp)
+    add_executable(ssl_client_nonblock tests/openssl_examples-master/ssl_client_nonblock.c)
+    add_executable(ssl_server_nonblock tests/openssl_examples-master/ssl_server_nonblock.c)
+    redefine_file_macro(openssl_server)
+    redefine_file_macro(openssl_client)
+    redefine_file_macro(ssl_client_nonblock)
+    redefine_file_macro(ssl_server_nonblock)
+    target_link_libraries(openssl_server
+            ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
+            )
+    target_link_libraries(openssl_client
+            ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
+            )
+    target_link_libraries(ssl_server_nonblock
+            ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
+            )
+    target_link_libraries(ssl_client_nonblock
+            ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
+            )
+endif ()
+
+
+
 ########安装脚本##########
-install(TARGETS kProxyCpp kProxy
+install(TARGETS kProxy
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
@@ -162,14 +203,20 @@ install(FILES
         ${include_header}
         DESTINATION include)
 
-install(FILES
-        main.cpp
-        DESTINATION Example)
+if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
+    install(TARGETS kProxyCpp
+            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION lib
+            ARCHIVE DESTINATION lib)
+    install(FILES
+            main.cpp
+            DESTINATION Example)
 
 
-# 复制 lib 代码到 lib 下
-install(DIRECTORY Example/ DESTINATION Example
-        PATTERN "Example/*"
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-        GROUP_EXECUTE GROUP_READ)
+    # 复制 lib 代码到 lib 下
+    install(DIRECTORY Example/ DESTINATION Example
+            PATTERN "Example/*"
+            PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ)
+endif ()
 
