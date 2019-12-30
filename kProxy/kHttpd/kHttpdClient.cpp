@@ -121,7 +121,11 @@ void kHttpdClient::init(kHttpd *_parent, int _fd) {
     this->parent = _parent;
     if (this->_socket == nullptr) {
         this->fd = _fd;
+#ifdef ENABLE_OPENSSL
+        this->_socket = new kekxv::socket(_fd,parent->sslCommon);
+#else
         this->_socket = new kekxv::socket(_fd);
+#endif
     }
 }
 

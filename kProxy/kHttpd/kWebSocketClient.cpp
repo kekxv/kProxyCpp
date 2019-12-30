@@ -62,7 +62,11 @@ kWebSocketClient::kWebSocketClient(kHttpd *parent, int fd) {
     getpeername(fd, (struct sockaddr *) &remote_addr, &sin_size);
     this->parent = parent;
     this->fd = fd;
+#ifdef ENABLE_OPENSSL
+    this->_socket = new kekxv::socket(fd,parent->sslCommon);
+#else
     this->_socket = new kekxv::socket(fd);
+#endif
 }
 
 kWebSocketClient::~kWebSocketClient() {
