@@ -95,6 +95,10 @@ if (OpenCV_FOUND)
 endif ()
 
 find_package(PkgConfig)
+if (NOT "${PKG_CONFIG_PATH}" STREQUAL "")
+    set(ENV{PKG_CONFIG_PATH} ${PKG_CONFIG_PATH})
+endif ()
+
 pkg_search_module(OPENSSL openssl)
 if (OPENSSL_FOUND)
     add_definitions(-DENABLE_OPENSSL)
