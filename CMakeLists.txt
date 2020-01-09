@@ -15,8 +15,10 @@ add_definitions(-D_LOGGER_USE_THREAD_POOL_)
 
 find_library(PkgConfig REQUIRED)
 add_subdirectory(clangTools)
-get_property(libTools_LIBRARIES GLOBAL PROPERTY "libTools_LIBRARIES")
-INCLUDE_DIRECTORIES(clangTools/src)
+set(libTools_DIR "${CMAKE_CURRENT_SOURCE_DIR}/clangTools")
+include(clangTools/libTools.cmake)
+include(clangTools/cmake/MSVC.cmake)
+include_directories(${libTools_INCLUDE_DIR})
 
 if (WIN32)
     include_directories(tests)
@@ -42,27 +44,6 @@ if (HAVE_EXPERIMENTAL_FILESYSTEM)
 endif ()
 
 
-if (MSVC)
-    # 设置为 v140_xp 编译工具编译
-    # set(CMAKE_GENERATOR_TOOLSET "v140_xp")
-    # set(CMAKE_GENERATOR_PLATFORM "Win32")
-    set(CompilerFlags
-            CMAKE_CXX_FLAGS
-            CMAKE_CXX_FLAGS_DEBUG
-            CMAKE_CXX_FLAGS_RELEASE
-            CMAKE_C_FLAGS
-            CMAKE_C_FLAGS_DEBUG
-            CMAKE_C_FLAGS_RELEASE
-            )
-    foreach (CompilerFlag ${CompilerFlags})
-        string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
-    endforeach ()
-    # It should be set to 1 for the static MFC library, and 2 for the shared MFC library.
-    set(CMAKE_MFC_FLAG 1)
-    #add_definitions(-DUNICODE -D_UNICODE)
-    add_definitions(-D_AFXDLL)
-endif (MSVC)
-
 include_directories(
         .
         kProxy
@@ -77,16 +58,19 @@ find_library(pthread pthread)
 find_package(OpenCV)
 if (OpenCV_FOUND)
     add_definitions(-DENABLE_OPENCV)
-    # If the package has been found, several variables will
-    # be set, you can find the full list with descriptions
-    # in the OpenCVConfig.cmake file.
-    # Print some message showing some of them
-    message(STATUS "OpenCV library status:")
-    message(STATUS "    version: ${OpenCV_VERSION}")
-    message(STATUS "    libraries: ${OpenCV_LIBS}")
-    message(STATUS "    libraries: ${OpenCV_LIBRARIES}")
-    message(STATUS "    lib_dir: ${OpenCV_LIB_DIR}")
-    message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+
+    if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
+        # If the package has been found, several variables will
+        # be set, you can find the full list with descriptions
+        # in the OpenCVConfig.cmake file.
+        # Print some message showing some of them
+        message(STATUS "OpenCV library status:")
+        message(STATUS "    version: ${OpenCV_VERSION}")
+        message(STATUS "    libraries: ${OpenCV_LIBS}")
+        message(STATUS "    libraries: ${OpenCV_LIBRARIES}")
+        message(STATUS "    lib_dir: ${OpenCV_LIB_DIR}")
+        message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+    endif ()
     link_directories(${OpenCV_DIR})
     include_directories(
             ${OpenCV_INCLUDE_DIRS}
@@ -104,11 +88,14 @@ if (OPENSSL_FOUND)
     add_definitions(-DENABLE_OPENSSL)
 
     include_directories(${OPENSSL_INCLUDE_DIRS})
-    message(STATUS "OPENSSL library status:")
-    message(STATUS "    ${OPENSSL_VERSION}")
-    message(STATUS "    libraries: ${OPENSSL_LIBRARIES}")
-    message(STATUS "    lib_dir: ${OPENSSL_LIBRARY_DIRS}")
-    message(STATUS "    include path: ${OPENSSL_INCLUDE_DIRS}")
+
+    if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
+        message(STATUS "OPENSSL library status:")
+        message(STATUS "    ${OPENSSL_VERSION}")
+        message(STATUS "    libraries: ${OPENSSL_LIBRARIES}")
+        message(STATUS "    lib_dir: ${OPENSSL_LIBRARY_DIRS}")
+        message(STATUS "    include path: ${OPENSSL_INCLUDE_DIRS}")
+    endif ()
     include_directories(${OPENSSL_INCLUDE_DIRS})
     link_directories(${OPENSSL_LIBRARY_DIRS})
 
@@ -170,7 +157,7 @@ if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
 
 endif ()
 
-option(ENABLE_TEST "option for FILENAME" ON)
+option(ENABLE_TEST "option for ENABLE_TEST" OFF)
 if (ENABLE_TEST AND OPENSSL_FOUND)
     add_executable(openssl_server tests/openssl_server.cpp)
     add_executable(openssl_client tests/openssl_client.cpp)
@@ -193,7 +180,6 @@ if (ENABLE_TEST AND OPENSSL_FOUND)
             ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
             )
 endif ()
-
 
 
 ########安装脚本##########
