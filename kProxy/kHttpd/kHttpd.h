@@ -82,6 +82,11 @@ public:
             const std::string &url_path,
             url_cb task,
             const std::string &host = "");
+    void set_cb(
+            const std::string &url_path,
+            const std::string &method,
+            const std::string &host,
+            url_cb task);
 
     void set_gencb(gen_cb task);
 

@@ -327,6 +327,14 @@ void kHttpd::set_cb(
     set_cb(task, url_path, method, host);
 }
 
+void kHttpd::set_cb(
+        const std::string &url_path,
+        const std::string &method,
+        const std::string &host,
+        url_cb task) {
+    set_cb(task, url_path, method, host);
+}
+
 void
 kHttpd::set_cb(kHttpd::url_cb task, const std::string &url_path, const std::string &method, const std::string &host) {
     string key;
