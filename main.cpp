@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
                               }
                               auto right_index = right_str.find(",");
                               if (right_index != string::npos) {
-                                  right_str = right_str.substr(left_index + 1);
+                                  right_str = right_str.substr(right_index + 1);
                               }
 
                               auto left_bin = base64_decode(left_str);

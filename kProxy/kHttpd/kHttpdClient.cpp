@@ -38,18 +38,13 @@ using namespace std::experimental::filesystem;
 using namespace std::experimental;
 #else
 
-#include <filesystem>
-
 #endif
 #endif
 
-#include <time.h>
+#include <ctime>
 #include <sstream>
 
 using namespace std;
-#ifdef __APPLE__
-using namespace std::__fs;
-#endif
 
 static map<string, string> kHttpdClient_HTTP_Content_Type = {
         {"*",     "application/octet-stream"},
@@ -281,11 +276,19 @@ int kHttpdClient::run() {
                 throw std::exception();
             } else {
 
+#ifdef HAVE_EXPERIMENTAL_FILESYSTEM
                 bool is_dirs = filesystem::is_directory(parent->web_root_path + url_path);
+#else
+                bool is_dirs = logger::is_dir(parent->web_root_path + url_path);
+#endif
                 if (is_dirs) {
                     url_path += (url_path[url_path.size() - 1] == '/' ? "" : "/") + string("index.html");
                 }
+#ifdef HAVE_EXPERIMENTAL_FILESYSTEM
                 bool is_exists = filesystem::exists(parent->web_root_path + url_path);
+#else
+                bool is_exists = logger::exists(parent->web_root_path + url_path);
+#endif
                 if (!is_exists) {
                     throw std::exception();
                 }
@@ -313,7 +316,6 @@ int kHttpdClient::run() {
                     if (!inFile) {
                         throw std::exception();
                     }
-                    filesystem::path filepath(parent->web_root_path + url_path);
                     auto mtime = get_localtime(logger::get_mtime(parent->web_root_path + url_path));
                     response_header["Last-Modified"] = mtime;
                     response_header["Etag"] = mtime;
@@ -327,12 +329,20 @@ int kHttpdClient::run() {
                         }
                         inFile.close();
                         string type = "*";
+
+#ifdef HAVE_EXPERIMENTAL_FILESYSTEM
+                        filesystem::path filepath(parent->web_root_path + url_path);
 #ifdef WIN32
                         auto _ = filepath.extension();
                         type = _.string();
 #else
                         type = filepath.extension();
 #endif
+#else
+                        // TODO 获取后缀
+                        type = logger::extension(parent->web_root_path + url_path);
+#endif
+
                         if (kHttpdClient_HTTP_Content_Type.find(type) == kHttpdClient_HTTP_Content_Type.end())
                             type = "*";
                         this->ContentType = kHttpdClient_HTTP_Content_Type[type];

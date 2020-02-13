@@ -123,7 +123,7 @@ FILE(GLOB_RECURSE srcSource
 add_library(kProxy STATIC ${srcSource})
 
 if (WIN32)
-    set(getopt_src "tests/getopt.c")
+    set(getopt_src "tests/getopt.c" tests/test_opencv.cpp)
 endif ()
 
 
@@ -148,7 +148,14 @@ endif ()
 
 if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
     add_executable(kProxyCpp main.cpp ${getopt_src})
-    target_link_libraries(kProxyCpp kProxy)
+    target_link_libraries(kProxyCpp
+            kProxy
+            ${dl_LIBRARIES}
+            ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
+            ${OpenCV_LIBS}
+            ${libTools_LIBRARIES}
+            ${wsock32_LIBS}
+            )
     option(ENABLE_FILENAME "option for FILENAME" ON)
     if (ENABLE_FILENAME)
         #重新定义当前目标的源文件的 __FILENAME__ 宏

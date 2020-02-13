@@ -10,9 +10,11 @@
 #include <cstdio>
 
 #else
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include<unistd.h>
+
 #ifdef ENABLE_OPENSSL
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
@@ -36,9 +38,7 @@
 #endif
 
 using namespace std;
-#ifdef __APPLE__
-using namespace std::__fs;
-#endif
+
 
 #ifdef __FILENAME__
 const char *kWebSocketClient::TAG = __FILENAME__;
@@ -160,7 +160,8 @@ int kWebSocketClient::run() {
     }
     // _logger->i(TAG, __LINE__, "%s", SecWebSocketAccept.c_str());
     if ((connection != string("upgrade")) || (upgrade != string("websocket"))) {
-        return kHttpdClient(parent, fd, header, data, split_index, is_split_n, method, url_path, http_version,_socket).run();
+        return kHttpdClient(parent, fd, header, data, split_index, is_split_n, method, url_path, http_version,
+                            _socket).run();
     }
 
     SecWebSocketKey = logger::trim(header["sec-websocket-key"]);
