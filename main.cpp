@@ -87,7 +87,7 @@ void CalcCorners(const Mat &H, const Mat &src,
 
 }
 
-int MergePhoto(Mat image01, Mat image02, Mat &outMat) {
+int MergePhoto(const Mat& image01, Mat image02, Mat &outMat) {
     if (image01.empty() || image02.empty())return -1;
     four_corners_t corners;
     //灰度图转换
@@ -129,9 +129,9 @@ int MergePhoto(Mat image01, Mat image02, Mat &outMat) {
 
     vector<Point2f> imagePoints1, imagePoints2;
 
-    for (int i = 0; i < GoodMatchePoints.size(); i++) {
-        imagePoints2.push_back(keyPoint2[GoodMatchePoints[i].queryIdx].pt);
-        imagePoints1.push_back(keyPoint1[GoodMatchePoints[i].trainIdx].pt);
+    for (auto & GoodMatchePoint : GoodMatchePoints) {
+        imagePoints2.push_back(keyPoint2[GoodMatchePoint.queryIdx].pt);
+        imagePoints1.push_back(keyPoint1[GoodMatchePoint.trainIdx].pt);
     }
 
     if (imagePoints1.empty() || imagePoints2.empty())return -1;
@@ -345,11 +345,11 @@ int main(int argc, char **argv) {
                                   throw std::exception();
                                   return 0;
                               }
-                              auto left_index = left_str.find(",");
+                              auto left_index = left_str.find(',');
                               if (left_index != string::npos) {
                                   left_str = left_str.substr(left_index + 1);
                               }
-                              auto right_index = right_str.find(",");
+                              auto right_index = right_str.find(',');
                               if (right_index != string::npos) {
                                   right_str = right_str.substr(right_index + 1);
                               }
