@@ -1,3 +1,7 @@
+# 最新说明
+
+由于核心代码比较少，所以直接集成到 `clangTools` 项目，本项目进行归档
+
 # kProxyCpp 服务端软件
 
 承接自 [kHttpd](https://github.com/kekxv/kHttpd) 项目。
