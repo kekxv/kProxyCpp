@@ -44,12 +44,6 @@ if (HAVE_EXPERIMENTAL_FILESYSTEM)
 endif ()
 
 
-include_directories(
-        .
-        kProxy
-        kProxy/kHttpd
-)
-
 
 find_library(dl dl)
 find_library(pthread pthread)
@@ -105,52 +99,17 @@ if (APPLE)
 endif ()
 
 
-#    get_cmake_property(_variableNames VARIABLES)
-#    foreach (_variableName ${_variableNames})
-#        message(STATUS "${_variableName}=${${_variableName}}")
-#    endforeach()
-
-#aux_source_directory(kHttpd srcSource)
-FILE(GLOB_RECURSE srcSource
-        "kProxy/*.c"
-        "kProxy/*.cc"
-        "kProxy/*.cpp"
-        "kProxy/*.h"
-        "kProxy/*.hpp"
-        "kProxy/*/*"
-        )
-
-add_library(kProxy STATIC ${srcSource})
 
 if (WIN32)
     set(getopt_src "tests/getopt.c" tests/test_opencv.cpp)
 endif ()
 
 
-target_compile_definitions(
-        kProxy
-        PUBLIC -D_kProxy_HEADER_
-)
-target_link_libraries(kProxy
-        ${dl_LIBRARIES}
-        ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
-        ${OpenCV_LIBS}
-        ${libTools_LIBRARIES}
-        ${wsock32_LIBS}
-        )
-
-
-option(ENABLE_FILENAME "option for FILENAME" ON)
-if (ENABLE_FILENAME)
-    #重新定义当前目标的源文件的 __FILENAME__ 宏
-    redefine_file_macro(kProxy)
-endif ()
-
 if ("${kProxyCpp_Other_Project}" STREQUAL "ON")
     add_executable(kProxyCpp main.cpp ${getopt_src})
     target_link_libraries(kProxyCpp
-            kProxy
             ${dl_LIBRARIES}
+            ${libTools_LIBRARIES}
             ${OPENSSL_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
             ${OpenCV_LIBS}
             ${libTools_LIBRARIES}
@@ -190,12 +149,6 @@ endif ()
 
 
 ########安装脚本##########
-install(TARGETS kProxy
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-
-FILE(GLOB_RECURSE include_header kProxy/*.h kProxy/*/*.h)
 install(FILES
         ${include_header}
         DESTINATION include)
